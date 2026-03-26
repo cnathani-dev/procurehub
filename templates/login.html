@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In – ProcureHub</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      background: linear-gradient(135deg, #1b2240 0%, #2e3a6e 100%);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      width: 100%; max-width: 400px;
+      padding: 2.5rem 2.25rem;
+    }
+    .brand-icon {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: #4f8ef7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.75rem; color: #fff;
+      margin: 0 auto 1rem;
+    }
+    .form-control:focus {
+      border-color: #4f8ef7;
+      box-shadow: 0 0 0 .2rem rgba(79,142,247,.2);
+    }
+    .btn-signin {
+      background: #4f8ef7; border: none; color: #fff;
+      padding: .65rem; font-weight: 600; font-size: .95rem;
+      border-radius: 8px; width: 100%;
+      transition: background .15s;
+    }
+    .btn-signin:hover { background: #3a78e0; color: #fff; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand-icon"><i class="bi bi-box-seam"></i></div>
+  <h4 class="text-center fw-700 mb-1" style="font-weight:700;">ProcureHub</h4>
+  <p class="text-center text-muted mb-4" style="font-size:.875rem;">Sign in to continue</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2 mb-3" style="font-size:.875rem;">{{ msg }}</div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('login') }}">
+    <div class="mb-3">
+      <label class="form-label fw-600 text-dark" style="font-size:.875rem;font-weight:600;">Username</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-person text-muted"></i></span>
+        <input type="text" name="username" class="form-control" placeholder="Enter username" required autofocus/>
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="form-label fw-600 text-dark" style="font-size:.875rem;font-weight:600;">Password</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock text-muted"></i></span>
+        <input type="password" name="password" class="form-control" placeholder="Enter password" required/>
+      </div>
+    </div>
+    <button type="submit" class="btn-signin">Sign In</button>
+  </form>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

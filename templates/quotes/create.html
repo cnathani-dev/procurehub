@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}New Quote Request – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>New Quote Request</h1>
+  <p>Select the items you need priced and the suppliers to request quotes from.</p>
+</div>
+
+<form method="POST">
+<div class="row g-4">
+  <!-- Left: Details + Items -->
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header py-3 px-4"><i class="bi bi-info-circle me-2 text-muted"></i>Request Details</div>
+      <div class="card-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-600" style="font-weight:600;">Title <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control" required
+                 placeholder="e.g. Q2-2026 Office Supplies"/>
+        </div>
+        <div class="mb-0">
+          <label class="form-label fw-600" style="font-weight:600;">Notes</label>
+          <textarea name="notes" class="form-control" rows="2"
+                    placeholder="Delivery requirements, deadlines, etc."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box me-2 text-muted"></i>Select Items</span>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAll">All</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAll">None</button>
+        </div>
+      </div>
+      <div class="card-body p-3">
+        <input type="text" id="itemSearch" class="form-control form-control-sm mb-2"
+               placeholder="Filter items…"/>
+        {% if items %}
+        <div class="check-group" id="itemCheckGroup">
+          {% set ns = namespace(current_cat=None) %}
+          {% for item in items %}
+            {% if item.category != ns.current_cat %}
+              {% set ns.current_cat = item.category %}
+              {% if ns.current_cat %}
+              <div class="px-2 py-1 text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;font-weight:700;border-top:1px solid #eee;margin-top:.3rem;">
+                {{ ns.current_cat }}
+              </div>
+              {% endif %}
+            {% endif %}
+            <div class="form-check item-check-row">
+              <input class="form-check-input item-check" type="checkbox"
+                     name="item_ids" value="{{ item.id }}" id="item{{ item.id }}"/>
+              <label class="form-check-label w-100" for="item{{ item.id }}" style="cursor:pointer;">
+                <span class="fw-600" style="font-weight:600;">{{ item.name }}</span>
+                {% if item.qty %}<span class="text-muted ms-1" style="font-size:.8rem;">× {{ item.qty }}{{ ' ' + item.unit if item.unit else '' }}</span>{% endif %}
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">
+          No items. <a href="{{ url_for('items_import') }}">Import items first.</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Suppliers + Submit -->
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header py-3 px-4"><i class="bi bi-people me-2 text-muted"></i>Select Suppliers</div>
+      <div class="card-body p-3">
+        {% if suppliers %}
+        <div class="check-group">
+          {% for s in suppliers %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox"
+                   name="supplier_ids" value="{{ s.id }}" id="sup{{ s.id }}"/>
+            <label class="form-check-label w-100" for="sup{{ s.id }}" style="cursor:pointer;">
+              <div class="fw-600" style="font-weight:600;">{{ s.name }}</div>
+              {% if s.phone %}<div class="text-muted" style="font-size:.78rem;">{{ s.phone }}</div>{% endif %}
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">
+          No suppliers. <a href="{{ url_for('suppliers_add') }}">Add suppliers first.</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-grid gap-2">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="bi bi-send me-1"></i>Create Quote Request
+      </button>
+      <a href="{{ url_for('quotes_list') }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Select/clear all items
+document.getElementById('selectAll').addEventListener('click', () =>
+  document.querySelectorAll('.item-check').forEach(c => c.checked = true));
+document.getElementById('clearAll').addEventListener('click', () =>
+  document.querySelectorAll('.item-check').forEach(c => c.checked = false));
+
+// Live filter items
+document.getElementById('itemSearch').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.item-check-row').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

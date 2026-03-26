@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Items – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Items</h1>
+    <p>{{ items|length }} item{{ 's' if items|length != 1 }} in catalog</p>
+  </div>
+  <a href="{{ url_for('items_import') }}" class="btn btn-primary">
+    <i class="bi bi-upload me-1"></i>Import Items
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if items %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="itemsTable">
+        <thead>
+          <tr>
+            <th class="ps-4">#</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Unit</th>
+            <th class="pe-4 text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
+            <td><strong>{{ item.name }}</strong></td>
+            <td>
+              {% if item.category %}
+                <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-weight:500;">{{ item.category }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              {{ item.description or '—' }}
+            </td>
+            <td>{{ item.qty if item.qty is not none else '—' }}</td>
+            <td>{{ item.unit or '—' }}</td>
+            <td class="pe-4 text-end">
+              <a href="{{ url_for('items_edit', item_id=item.id) }}"
+                 class="btn btn-sm btn-outline-secondary me-1">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('Delete {{ item.name }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-box" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+      <p class="mb-1">No items yet.</p>
+      <a href="{{ url_for('items_import') }}" class="btn btn-primary mt-2">
+        <i class="bi bi-upload me-1"></i>Import from Excel / CSV
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Simple live search
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.createElement('input');
+  input.className = 'form-control mb-3';
+  input.placeholder = 'Search items…';
+  const card = document.querySelector('.card');
+  card.parentNode.insertBefore(input, card);
+
+  input.addEventListener('input', () => {
+    const q = input.value.toLowerCase();
+    document.querySelectorAll('#itemsTable tbody tr').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

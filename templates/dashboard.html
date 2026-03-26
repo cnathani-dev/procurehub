@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Welcome back, {{ session.username }}.</p>
+  </div>
+</div>
+
+<!-- ── Stat cards ─────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card p-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;"><i class="bi bi-box"></i></div>
+        <div>
+          <div class="text-muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Total Items</div>
+          <div class="fw-700" style="font-size:1.75rem;font-weight:700;line-height:1.1;">{{ item_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card p-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#f0fdf4;color:#22c55e;"><i class="bi bi-people"></i></div>
+        <div>
+          <div class="text-muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Suppliers</div>
+          <div class="fw-700" style="font-size:1.75rem;font-weight:700;line-height:1.1;">{{ supplier_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card p-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;"><i class="bi bi-file-earmark-text"></i></div>
+        <div>
+          <div class="text-muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Quote Requests</div>
+          <div class="fw-700" style="font-size:1.75rem;font-weight:700;line-height:1.1;">{{ qr_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card p-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fce7f3;color:#ec4899;"><i class="bi bi-hourglass-split"></i></div>
+        <div>
+          <div class="text-muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Open Requests</div>
+          <div class="fw-700" style="font-size:1.75rem;font-weight:700;line-height:1.1;">{{ open_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick actions ──────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{{ url_for('items_import') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
+      <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;flex-shrink:0;"><i class="bi bi-upload"></i></div>
+      <div>
+        <div class="fw-600" style="font-weight:600;">Import Items</div>
+        <div class="text-muted" style="font-size:.8rem;">Upload Excel / CSV</div>
+      </div>
+      <i class="bi bi-chevron-right ms-auto text-muted"></i>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('suppliers_add') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
+      <div class="stat-icon" style="background:#f0fdf4;color:#22c55e;flex-shrink:0;"><i class="bi bi-person-plus"></i></div>
+      <div>
+        <div class="fw-600" style="font-weight:600;">Add Supplier</div>
+        <div class="text-muted" style="font-size:.8rem;">Register a new vendor</div>
+      </div>
+      <i class="bi bi-chevron-right ms-auto text-muted"></i>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('quotes_create') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
+      <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;flex-shrink:0;"><i class="bi bi-plus-circle"></i></div>
+      <div>
+        <div class="fw-600" style="font-weight:600;">New Quote Request</div>
+        <div class="text-muted" style="font-size:.8rem;">Select items & suppliers</div>
+      </div>
+      <i class="bi bi-chevron-right ms-auto text-muted"></i>
+    </a>
+  </div>
+</div>
+
+<!-- ── Recent activity ────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2 py-3 px-4">
+    <i class="bi bi-clock-history text-muted"></i>
+    <span>Recent Quotes Received</span>
+  </div>
+  <div class="card-body p-0">
+    {% if recent %}
+    <table class="table table-hover mb-0">
+      <thead><tr>
+        <th class="ps-4">Supplier</th>
+        <th>Quote Request</th>
+        <th>Uploaded</th>
+        <th class="pe-4"></th>
+      </tr></thead>
+      <tbody>
+        {% for r in recent %}
+        <tr>
+          <td class="ps-4"><i class="bi bi-building me-1 text-muted"></i>{{ r.supplier_name }}</td>
+          <td>{{ r.title }}</td>
+          <td class="text-muted">{{ r.uploaded_at[:16] }}</td>
+          <td class="pe-4 text-end">
+            <a href="{{ url_for('quotes_comparison', qr_id=r.qr_id) }}" class="btn btn-sm btn-outline-primary">
+              Compare
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
+      No quotes received yet.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

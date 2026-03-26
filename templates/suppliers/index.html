@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Suppliers – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Suppliers</h1>
+    <p>{{ suppliers|length }} supplier{{ 's' if suppliers|length != 1 }} registered</p>
+  </div>
+  <a href="{{ url_for('suppliers_add') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add Supplier
+  </a>
+</div>
+
+{% if suppliers %}
+<div class="row g-3">
+  {% for s in suppliers %}
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0 fw-700" style="font-weight:700;font-size:1rem;">{{ s.name }}</h6>
+          <div class="d-flex gap-1">
+            <a href="{{ url_for('suppliers_edit', supplier_id=s.id) }}"
+               class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('suppliers_delete', supplier_id=s.id) }}"
+                  class="d-inline" onsubmit="return confirm('Delete {{ s.name }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </div>
+        </div>
+        {% if s.phone %}
+          <div class="text-muted mb-1" style="font-size:.875rem;">
+            <i class="bi bi-telephone me-1"></i>{{ s.phone }}
+          </div>
+        {% endif %}
+        {% if s.address %}
+          <div class="text-muted mb-1" style="font-size:.875rem;">
+            <i class="bi bi-geo-alt me-1"></i>{{ s.address }}
+          </div>
+        {% endif %}
+        {% if s.remarks %}
+          <div class="mt-2 p-2 rounded" style="background:#f8f9fa;font-size:.8rem;color:#555;">
+            <i class="bi bi-chat-left-text me-1"></i>{{ s.remarks }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-people" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+    <p class="mb-1">No suppliers yet.</p>
+    <a href="{{ url_for('suppliers_add') }}" class="btn btn-primary mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Add First Supplier
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

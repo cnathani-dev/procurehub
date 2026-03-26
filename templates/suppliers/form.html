@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Supplier – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ action }} Supplier</h1>
+  <p>{{ 'Fill in the supplier details below.' if action == 'Add' else 'Update supplier details.' }}</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Company Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control"
+                   value="{{ supplier.name if supplier else '' }}" required
+                   placeholder="e.g. Acme Supplies Ltd"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Phone Number</label>
+            <input type="text" name="phone" class="form-control"
+                   value="{{ supplier.phone if supplier and supplier.phone else '' }}"
+                   placeholder="+1 555-000-0000"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Address</label>
+            <textarea name="address" class="form-control" rows="2"
+                      placeholder="Street, City, Country">{{ supplier.address if supplier and supplier.address else '' }}</textarea>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-600" style="font-weight:600;">Remarks</label>
+            <textarea name="remarks" class="form-control" rows="3"
+                      placeholder="Notes, payment terms, lead times…">{{ supplier.remarks if supplier and supplier.remarks else '' }}</textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">
+              {{ 'Add Supplier' if action == 'Add' else 'Save Changes' }}
+            </button>
+            <a href="{{ url_for('suppliers_list') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

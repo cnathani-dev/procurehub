@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}ProcureHub{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --sidebar-bg: #1b2240;
+      --sidebar-accent: #2e3a6e;
+      --brand-color: #4f8ef7;
+    }
+    body { background: #f4f6fb; font-size: 0.92rem; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px; min-height: 100vh;
+      background: var(--sidebar-bg);
+      position: fixed; top: 0; left: 0; z-index: 200;
+      display: flex; flex-direction: column;
+    }
+    .sidebar-brand {
+      padding: 1.4rem 1.25rem;
+      color: #fff; font-weight: 700; font-size: 1.15rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      letter-spacing: .3px;
+    }
+    .sidebar-brand i { color: var(--brand-color); }
+    .nav-section-label {
+      padding: .9rem 1.25rem .3rem;
+      font-size: .68rem; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: rgba(255,255,255,.35);
+    }
+    .sidebar .nav-link {
+      color: rgba(255,255,255,.65);
+      padding: .55rem 1.25rem;
+      font-size: .875rem;
+      border-radius: 0;
+      transition: background .15s, color .15s;
+    }
+    .sidebar .nav-link i { width: 20px; margin-right: 8px; font-size: .95rem; }
+    .sidebar .nav-link:hover { background: rgba(255,255,255,.07); color: #fff; }
+    .sidebar .nav-link.active { background: var(--brand-color); color: #fff; }
+    .sidebar-footer {
+      margin-top: auto;
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding: .75rem 1.25rem;
+    }
+
+    /* ── Main ── */
+    .main-content { margin-left: 240px; padding: 2rem 2.25rem; min-height: 100vh; }
+    .page-header { margin-bottom: 1.75rem; }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; color: #1b2240; margin: 0; }
+    .page-header p  { color: #6c757d; margin: .2rem 0 0; }
+
+    /* ── Cards ── */
+    .card { border: none; box-shadow: 0 2px 12px rgba(0,0,0,.06); border-radius: 12px; }
+    .card-header { background: #fff; border-bottom: 1px solid #eee; border-radius: 12px 12px 0 0 !important; font-weight: 600; }
+
+    /* ── Stats ── */
+    .stat-card { border-radius: 14px !important; transition: transform .2s; }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+
+    /* ── Table ── */
+    .table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .5px; color: #6c757d; font-weight: 700; border-bottom: 2px solid #eee; }
+    .table td { vertical-align: middle; }
+
+    /* ── Badges ── */
+    .badge-open   { background: #d1fae5; color: #065f46; }
+    .badge-closed { background: #e5e7eb; color: #374151; }
+
+    /* ── Price comparison ── */
+    .price-best  { background: #d1fae5 !important; font-weight: 700; color: #065f46; }
+    .price-blank { color: #ccc; font-style: italic; }
+
+    /* ── Misc ── */
+    .btn-primary { background: var(--brand-color); border-color: var(--brand-color); }
+    .btn-primary:hover { background: #3a78e0; border-color: #3a78e0; }
+    .form-control:focus, .form-select:focus { border-color: var(--brand-color); box-shadow: 0 0 0 .2rem rgba(79,142,247,.2); }
+    .check-group { max-height: 320px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; padding: .5rem; }
+    .check-group .form-check { padding: .35rem .5rem; border-radius: 6px; }
+    .check-group .form-check:hover { background: #f8f9fa; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <i class="bi bi-box-seam me-2"></i>ProcureHub
+  </div>
+
+  <nav class="nav flex-column mt-1">
+    <a href="{{ url_for('dashboard') }}"
+       class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i>Dashboard
+    </a>
+
+    <div class="nav-section-label">Catalog</div>
+    <a href="{{ url_for('items_list') }}"
+       class="nav-link {% if request.endpoint and 'items' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-box"></i>Items
+    </a>
+    <a href="{{ url_for('suppliers_list') }}"
+       class="nav-link {% if request.endpoint and 'suppliers' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-people"></i>Suppliers
+    </a>
+
+    <div class="nav-section-label">Procurement</div>
+    <a href="{{ url_for('quotes_list') }}"
+       class="nav-link {% if request.endpoint and 'quotes' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-file-earmark-text"></i>Quote Requests
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="d-flex align-items-center gap-2">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-color);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.85rem;">
+        {{ session.username[0]|upper }}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="text-white" style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ session.username }}</div>
+        <a href="{{ url_for('logout') }}" class="text-white-50" style="font-size:.75rem;text-decoration:none;">Sign out</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────────────────────── -->
+<div class="main-content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show shadow-sm" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

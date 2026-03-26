@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Quote Requests – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Quote Requests</h1>
+    <p>{{ requests|length }} request{{ 's' if requests|length != 1 }}</p>
+  </div>
+  <a href="{{ url_for('quotes_create') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>New Request
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if requests %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Title</th>
+            <th>Status</th>
+            <th>Items</th>
+            <th>Suppliers</th>
+            <th>Received</th>
+            <th>Created</th>
+            <th class="pe-4 text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in requests %}
+          <tr>
+            <td class="ps-4"><strong>{{ r.title }}</strong></td>
+            <td>
+              <span class="badge badge-{{ r.status }}" style="font-size:.75rem;">
+                {{ r.status|capitalize }}
+              </span>
+            </td>
+            <td>{{ r.item_count }}</td>
+            <td>{{ r.supplier_count }}</td>
+            <td>
+              <span class="{% if r.received_count > 0 %}text-success fw-600{% else %}text-muted{% endif %}">
+                {{ r.received_count }} / {{ r.supplier_count }}
+              </span>
+            </td>
+            <td class="text-muted">{{ r.created_at[:10] }}</td>
+            <td class="pe-4 text-end d-flex gap-1 justify-content-end">
+              <a href="{{ url_for('quotes_detail', qr_id=r.id) }}"
+                 class="btn btn-sm btn-outline-primary">View</a>
+              {% if r.received_count > 0 %}
+              <a href="{{ url_for('quotes_comparison', qr_id=r.id) }}"
+                 class="btn btn-sm btn-outline-success">Compare</a>
+              {% endif %}
+              <form method="POST" action="{{ url_for('quotes_delete', qr_id=r.id) }}"
+                    class="d-inline" onsubmit="return confirm('Delete this quote request?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-file-earmark-text" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+      <p class="mb-1">No quote requests yet.</p>
+      <a href="{{ url_for('quotes_create') }}" class="btn btn-primary mt-2">
+        <i class="bi bi-plus-lg me-1"></i>Create First Request
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

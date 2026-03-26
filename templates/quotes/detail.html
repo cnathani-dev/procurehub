@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ qr.title }} – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <a href="{{ url_for('quotes_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
+        <i class="bi bi-arrow-left me-1"></i>Quote Requests
+      </a>
+    </div>
+    <h1>{{ qr.title }}</h1>
+    <p>
+      <span class="badge badge-{{ qr.status }} me-2">{{ qr.status|capitalize }}</span>
+      Created {{ qr.created_at[:10] }}
+      {% if qr.notes %} · {{ qr.notes }}{% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="POST" action="{{ url_for('quotes_toggle_status', qr_id=qr.id) }}">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">
+        {% if qr.status == 'open' %}
+          <i class="bi bi-lock me-1"></i>Close Request
+        {% else %}
+          <i class="bi bi-unlock me-1"></i>Reopen
+        {% endif %}
+      </button>
+    </form>
+    <a href="{{ url_for('quotes_comparison', qr_id=qr.id) }}" class="btn btn-success btn-sm">
+      <i class="bi bi-table me-1"></i>Compare Prices
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Items -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header py-3 px-4">
+        <i class="bi bi-box me-2 text-muted"></i>Items in Request
+        <span class="badge bg-secondary ms-1">{{ items|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Name</th>
+              <th>Category</th>
+              <th class="pe-4">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td class="ps-4">{{ item.name }}</td>
+              <td>
+                {% if item.category %}
+                  <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-weight:500;font-size:.72rem;">{{ item.category }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="pe-4 text-muted">
+                {{ item.qty if item.qty is not none else '—' }}{{ ' ' + item.unit if item.unit else '' }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supplier quote status -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header py-3 px-4">
+        <i class="bi bi-people me-2 text-muted"></i>Supplier Quotes
+        <span class="badge bg-secondary ms-1">{{ suppliers|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Supplier</th>
+              <th>Status</th>
+              <th>Uploaded</th>
+              <th class="pe-4 text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in suppliers %}
+            {% set sq = sq_map[s.id] %}
+            <tr>
+              <td class="ps-4">
+                <div class="fw-600" style="font-weight:600;">{{ s.name }}</div>
+                {% if s.phone %}<div class="text-muted" style="font-size:.78rem;">{{ s.phone }}</div>{% endif %}
+              </td>
+              <td>
+                {% if sq %}
+                  <span class="badge" style="background:#d1fae5;color:#065f46;">
+                    <i class="bi bi-check2 me-1"></i>Received
+                  </span>
+                {% else %}
+                  <span class="badge" style="background:#fef3c7;color:#92400e;">
+                    <i class="bi bi-hourglass me-1"></i>Pending
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-muted" style="font-size:.85rem;">
+                {{ sq.uploaded_at[:16] if sq else '—' }}
+              </td>
+              <td class="pe-4 text-end">
+                <a href="{{ url_for('quotes_upload', qr_id=qr.id, supplier_id=s.id) }}"
+                   class="btn btn-sm {% if sq %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
+                  {% if sq %}
+                    <i class="bi bi-arrow-repeat me-1"></i>Re-upload
+                  {% else %}
+                    <i class="bi bi-upload me-1"></i>Upload Quote
+                  {% endif %}
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
