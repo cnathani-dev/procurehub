@@ -4,8 +4,8 @@
 {% block content %}
 <div class="page-header">
   <div class="d-flex align-items-center gap-2 mb-1">
-    <a href="{{ url_for('item_lists_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-      <i class="bi bi-arrow-left me-1"></i>Item Lists
+    <a href="{{ url_for('projects_detail', project_id=project_id) }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
+      <i class="bi bi-arrow-left me-1"></i>{{ project.name }}
     </a>
   </div>
   <h1>{% if action == 'Edit' %}Edit{% else %}New{% endif %} Item List</h1>
@@ -32,7 +32,7 @@
             <button type="submit" class="btn btn-primary btn-lg">
               <i class="bi bi-check-lg me-1"></i>Create Item List
             </button>
-            <a href="{{ url_for('item_lists_list') }}" class="btn btn-outline-secondary">Cancel</a>
+            <a href="{{ url_for('projects_detail', project_id=project_id) }}" class="btn btn-outline-secondary">Cancel</a>
           </div>
         </form>
       </div>

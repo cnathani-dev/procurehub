@@ -769,7 +769,7 @@ def item_lists_create(project_id):
             if not name:
                 flash('List name is required.', 'danger')
                 return render_template('item_lists/form.html',
-                                       project=project, action='Create')
+                                       project=project, action='Create', project_id=project_id)
 
             cur = conn.execute(
                 'INSERT INTO item_lists (project_id, name, description) VALUES (?,?,?)',
@@ -779,11 +779,13 @@ def item_lists_create(project_id):
             )
             list_id = cur.lastrowid
             flash('Item list created.', 'success')
+            session['active_project_id'] = project_id
             return redirect(url_for('item_lists_detail',
                                     project_id=project_id, list_id=list_id))
 
+    session['active_project_id'] = project_id
     return render_template('item_lists/form.html',
-                           project=project, action='Create')
+                           project=project, action='Create', project_id=project_id)
 
 
 @app.route('/projects/<int:project_id>/lists/<int:list_id>')
