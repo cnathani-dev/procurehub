@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ list.name }} – ProcureHub{% endblock %}
+{% block title %}{{ item_list.name }} – ProcureHub{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -12,9 +12,9 @@
   </div>
   <div class="d-flex align-items-start justify-content-between">
     <div>
-      <h1 class="mb-0">{{ list.name }}</h1>
-      {% if list.description %}
-      <p class="text-muted mt-2 mb-0">{{ list.description }}</p>
+      <h1 class="mb-0">{{ item_list.name }}</h1>
+      {% if item_list.description %}
+      <p class="text-muted mt-2 mb-0">{{ item_list.description }}</p>
       {% endif %}
     </div>
     <div class="btn-group btn-group-sm" role="group">
@@ -23,14 +23,14 @@
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
         <li>
-          <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=list.id) }}" class="dropdown-item">
+          <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=item_list.id) }}" class="dropdown-item">
             <i class="bi bi-pencil me-2"></i>Edit Items
           </a>
         </li>
         <li><hr class="dropdown-divider"></li>
         <li>
-          <form method="POST" action="{{ url_for('item_lists_delete', project_id=project_id, list_id=list.id) }}" style="display:inline;"
-                onsubmit="return confirm('Delete {{ list.name }}?')">
+          <form method="POST" action="{{ url_for('item_lists_delete', project_id=project_id, list_id=item_list.id) }}" style="display:inline;"
+                onsubmit="return confirm('Delete {{ item_list.name }}?')">
             <button type="submit" class="dropdown-item text-danger">
               <i class="bi bi-trash me-2"></i>Delete List
             </button>
@@ -48,7 +48,7 @@
       <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
         <span><i class="bi bi-box me-2 text-muted"></i>Items ({{ items|length }})</span>
         <div class="btn-group btn-group-sm" role="group">
-          <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=list.id) }}" class="btn btn-outline-secondary" title="Import items from Excel">
+          <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=item_item_list.id) }}" class="btn btn-outline-secondary" title="Import items from Excel">
             <i class="bi bi-upload me-1"></i>Import
           </a>
           <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Add item manually">
@@ -89,7 +89,7 @@
           <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>
           <p class="mb-3">No items in this list yet.</p>
           <div class="d-flex gap-2 justify-content-center">
-            <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=list.id) }}" class="btn btn-primary btn-sm">
+            <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=item_list.id) }}" class="btn btn-primary btn-sm">
               <i class="bi bi-upload me-1"></i>Import Items
             </a>
             <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
@@ -131,7 +131,7 @@
           </table>
         </div>
         <div class="card-footer p-3 bg-light">
-          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=list.id) }}" class="btn btn-primary w-100">
+          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=item_list.id) }}" class="btn btn-primary w-100">
             <i class="bi bi-plus-lg me-1"></i>New Quote Request
           </a>
         </div>
@@ -139,7 +139,7 @@
         <div class="text-center py-4 text-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
           <i class="bi bi-file-earmark-text mb-2" style="font-size:1.5rem;opacity:0.5;"></i>
           <p class="mb-3">No quote requests yet.</p>
-          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=list.id) }}" class="btn btn-primary">
+          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=item_list.id) }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i>Create Quote Request
           </a>
         </div>
@@ -157,7 +157,7 @@
         <h5 class="modal-title">Add Item Manually</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form method="POST" action="{{ url_for('item_lists_add_item', project_id=project_id, list_id=list.id) }}">
+      <form method="POST" action="{{ url_for('item_lists_add_item', project_id=project_id, list_id=item_list.id) }}">
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label fw-600" style="font-weight:600;">Item Name <span class="text-danger">*</span></label>
