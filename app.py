@@ -346,7 +346,23 @@ def dashboard():
 def items_list():
     with get_db() as conn:
         items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
-    return render_template('items/index.html', items=items)
+
+    # Group items by category
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for item in items:
+        cat = item['category'] or 'Uncategorized'
+        grouped[cat].append(dict(item))
+
+    # Sort categories with Uncategorized last
+    categories = sorted(
+        [k for k in grouped.keys() if k != 'Uncategorized'],
+        key=str.lower
+    )
+    if 'Uncategorized' in grouped:
+        categories.append('Uncategorized')
+
+    return render_template('items/index.html', items=items, grouped_items=grouped, categories=categories)
 
 
 @app.route('/items/<int:item_id>/qty', methods=['POST'])

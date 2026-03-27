@@ -25,16 +25,9 @@
         <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Category</label>
         <select id="categoryFilter" class="form-select form-select-sm">
           <option value="">All Categories</option>
-          {% set categories = [] %}
-          {% for item in items %}
-            {% if item.category and item.category not in categories %}
-              {% set _ = categories.append(item.category) %}
-              <option value="{{ item.category }}">{{ item.category }}</option>
-            {% endif %}
+          {% for cat in categories %}
+          <option value="{{ cat }}">{{ cat }}</option>
           {% endfor %}
-          {% if '' in [item.category for item in items] %}
-          <option value="uncategorized">Uncategorized</option>
-          {% endif %}
         </select>
       </div>
       <div class="col-12 col-md-3">
@@ -54,114 +47,97 @@
 <!-- Items grouped by category -->
 {% if items %}
 <div id="itemsContainer">
-  {% set ns = namespace(current_cat=None, group_count=0) %}
-  {% for item in items %}
-    {% if item.category != ns.current_cat %}
-      {% if ns.group_count > 0 %}
-        </tbody></table></div></div></div>
-      {% endif %}
-      {% set ns.current_cat = item.category %}
-      {% set ns.group_count = ns.group_count + 1 %}
-      <div class="card mb-3 category-group" data-category="{{ item.category or 'uncategorized' }}">
-        <div class="card-header p-3 d-flex align-items-center gap-2" style="cursor:pointer;"
-             onclick="this.parentElement.querySelector('.category-items').classList.toggle('d-none')">
-          <i class="bi bi-chevron-down category-toggle" style="transition: transform 0.2s;"></i>
-          <span class="fw-600" style="font-weight:600;">
-            {% if item.category %}{{ item.category }}{% else %}Uncategorized{% endif %}
-          </span>
-          <span class="badge bg-secondary ms-auto">
-            {% set cat_count = items|selectattr('category', 'equalto', item.category)|list|length %}
-            {% if not item.category %}
-              {% set cat_count = items|selectattr('category', 'none')|list|length %}
-            {% endif %}
-            {{ cat_count }}
-          </span>
-        </div>
-        <div class="card-body category-items p-0">
-          <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead>
-                <tr style="font-size:.85rem;">
-                  <th class="ps-4">#</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th style="width:100px;">Qty</th>
-                  <th>Unit</th>
-                  <th class="pe-4 text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-    {% endif %}
-
-    <tr class="item-row" data-item-id="{{ item.id }}" data-item-name="{{ item.name.lower() }}"
-        data-item-desc="{{ (item.description or '').lower() }}" data-category="{{ item.category or 'uncategorized' }}"
-        data-qty="{{ item.qty or 0 }}">
-      <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
-      <td><strong>{{ item.name }}</strong></td>
-      <td class="text-muted">
-        {% if item.description %}
-          <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none"
-                  data-bs-toggle="modal"
-                  data-bs-target="#descModal{{ item.id }}"
-                  style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:left;">
-            {{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}
-          </button>
-          <!-- Description Modal -->
-          <div class="modal fade" id="descModal{{ item.id }}" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title">{{ item.name }} – Details</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body description-display">
-                  {{ item.description|format_description }}
-                </div>
-                <div class="modal-footer">
-                  <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-primary">
-                    <i class="bi bi-pencil me-1"></i>Edit Item
-                  </a>
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        {% else %}
-          <span class="text-muted">—</span>
-        {% endif %}
-      </td>
-      <td>
-        <input type="number" class="form-control form-control-sm qty-input"
-               value="{{ item.qty if item.qty is not none else '' }}"
-               placeholder="—"
-               data-item-id="{{ item.id }}"
-               step="0.01"
-               style="width:100px;"/>
-      </td>
-      <td class="text-muted">{{ item.unit or '—' }}</td>
-      <td class="pe-4 text-end">
-        <a href="{{ url_for('items_edit', item_id=item.id) }}"
-           class="btn btn-sm btn-outline-secondary me-1">
-          <i class="bi bi-pencil"></i>
-        </a>
-        <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
-              class="d-inline"
-              onsubmit="return confirm('Delete {{ item.name }}?')">
-          <button type="submit" class="btn btn-sm btn-outline-danger">
-            <i class="bi bi-trash"></i>
-          </button>
-        </form>
-      </td>
-    </tr>
-
-  {% endfor %}
-  {% if ns.group_count > 0 %}
-              </tbody>
-            </table>
-          </div>
-        </div>
+  {% for cat in categories %}
+  {% set cat_items = grouped_items[cat] %}
+  <div class="card mb-3 category-group" data-category="{{ cat }}">
+    <div class="card-header p-3 d-flex align-items-center gap-2" style="cursor:pointer;"
+         onclick="this.parentElement.querySelector('.category-items').classList.toggle('d-none'); this.querySelector('.category-toggle').style.transform = this.parentElement.querySelector('.category-items').classList.contains('d-none') ? 'rotate(-90deg)' : 'rotate(0deg)'">
+      <i class="bi bi-chevron-down category-toggle" style="transition: transform 0.2s;"></i>
+      <span class="fw-600" style="font-weight:600;">{{ cat }}</span>
+      <span class="badge bg-secondary ms-auto">{{ cat_items|length }}</span>
+    </div>
+    <div class="card-body category-items p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr style="font-size:.85rem;">
+              <th class="ps-4">#</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th style="width:100px;">Qty</th>
+              <th>Unit</th>
+              <th class="pe-4 text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in cat_items %}
+            <tr class="item-row" data-item-id="{{ item.id }}" data-item-name="{{ item.name.lower() }}"
+                data-item-desc="{{ (item.description or '').lower() }}" data-category="{{ cat }}"
+                data-qty="{{ item.qty or 0 }}">
+              <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
+              <td><strong>{{ item.name }}</strong></td>
+              <td class="text-muted">
+                {% if item.description %}
+                  <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none"
+                          data-bs-toggle="modal"
+                          data-bs-target="#descModal{{ item.id }}"
+                          style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:left;">
+                    {{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}
+                  </button>
+                  <!-- Description Modal -->
+                  <div class="modal fade" id="descModal{{ item.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title">{{ item.name }} – Details</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body description-display">
+                          {{ item.description|format_description }}
+                        </div>
+                        <div class="modal-footer">
+                          <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-primary">
+                            <i class="bi bi-pencil me-1"></i>Edit Item
+                          </a>
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <input type="number" class="form-control form-control-sm qty-input"
+                       value="{{ item.qty if item.qty is not none else '' }}"
+                       placeholder="—"
+                       data-item-id="{{ item.id }}"
+                       step="0.01"
+                       style="width:100px;"/>
+              </td>
+              <td class="text-muted">{{ item.unit or '—' }}</td>
+              <td class="pe-4 text-end">
+                <a href="{{ url_for('items_edit', item_id=item.id) }}"
+                   class="btn btn-sm btn-outline-secondary me-1">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('Delete {{ item.name }}?')">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-  {% endif %}
+    </div>
+  </div>
+  {% endfor %}
 </div>
 
 {% else %}
@@ -204,10 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            input.dataset.originalValue = qty;
             const row = input.closest('.item-row');
             row.dataset.qty = qty || '0';
-            // Re-sort if needed
             if (sortBy.value.startsWith('qty-')) {
               sortItems();
             }
@@ -220,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Save on Enter
     input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') input.blur();
     });
@@ -239,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
       row.style.display = matchesSearch && matchesCategory ? '' : 'none';
     });
 
-    // Hide empty category groups
     categoryGroups.forEach(group => {
       const visibleItems = group.querySelectorAll('.item-row:not([style*="display: none"])');
       group.style.display = visibleItems.length > 0 ? '' : 'none';
@@ -248,9 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function sortItems() {
     const sortValue = sortBy.value;
-    const rows = Array.from(document.querySelectorAll('.item-row'));
+    const allRows = Array.from(document.querySelectorAll('.item-row'));
 
-    rows.sort((a, b) => {
+    allRows.sort((a, b) => {
       let aVal, bVal;
       if (sortValue === 'name-asc') {
         aVal = a.dataset.itemName;
@@ -275,28 +247,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Re-insert sorted rows into their category groups
-    rows.forEach(row => {
+    allRows.forEach(row => {
       const group = document.querySelector(`[data-category="${row.dataset.category}"]`);
       if (group) {
-        group.querySelector('tbody').appendChild(row);
+        const tbody = group.querySelector('tbody');
+        tbody.appendChild(row);
       }
     });
   }
 
-  // Collapsible category headers
-  document.querySelectorAll('.card-header').forEach(header => {
-    if (header.parentElement.classList.contains('category-group')) {
-      header.addEventListener('click', () => {
-        const toggle = header.querySelector('.category-toggle');
-        const items = header.nextElementSibling;
-        items.classList.toggle('d-none');
-        toggle.style.transform = items.classList.contains('d-none') ? 'rotate(-90deg)' : 'rotate(0deg)';
-      });
-    }
-  });
-
-  // Event listeners
   searchInput.addEventListener('input', filterItems);
   categoryFilter.addEventListener('change', filterItems);
   sortBy.addEventListener('change', () => {
