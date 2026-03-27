@@ -7,9 +7,9 @@
     <h1>Projects</h1>
     <p>{{ projects|length }} project{{ 's' if projects|length != 1 }}</p>
   </div>
-  <a href="{{ url_for('projects_create') }}" class="btn btn-primary">
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="resetProjectModal()">
     <i class="bi bi-plus-lg me-1"></i>New Project
-  </a>
+  </button>
 </div>
 
 <div class="card">
@@ -39,17 +39,29 @@
             <td>{{ p.list_count }}</td>
             <td>{{ p.qr_count }}</td>
             <td class="text-muted">{{ p.created_at[:10] }}</td>
-            <td class="pe-4 text-end d-flex gap-1 justify-content-end" onclick="event.stopPropagation();">
-              <a href="{{ url_for('projects_edit', project_id=p.id) }}"
-                 class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <form method="POST" action="{{ url_for('projects_delete', project_id=p.id) }}"
-                    class="d-inline" onsubmit="return confirm('Delete {{ p.name }}?')">
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                  <i class="bi bi-trash"></i>
+            <td class="pe-4 text-end" onclick="event.stopPropagation();">
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                  <i class="bi bi-gear"></i>
                 </button>
-              </form>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#projectModal"
+                            onclick="editProjectModal({{ p.id }}, '{{ p.name }}', '{{ p.description or '' }}', '{{ p.status }}')">
+                      <i class="bi bi-pencil me-2"></i>Edit
+                    </button>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form method="POST" action="{{ url_for('projects_delete', project_id=p.id) }}" style="display:inline;"
+                          onsubmit="return confirm('Delete {{ p.name }}? This cannot be undone.')">
+                      <button type="submit" class="dropdown-item text-danger">
+                        <i class="bi bi-trash me-2"></i>Delete
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -60,11 +72,70 @@
     <div class="text-center py-5 text-muted">
       <i class="bi bi-kanban" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
       <p class="mb-1">No projects yet.</p>
-      <a href="{{ url_for('projects_create') }}" class="btn btn-primary mt-2">
+      <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="resetProjectModal()">
         <i class="bi bi-plus-lg me-1"></i>Create First Project
-      </a>
+      </button>
     </div>
     {% endif %}
   </div>
 </div>
+
+<!-- Project Modal (Create/Edit) -->
+<div class="modal fade" id="projectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="projectModalTitle">New Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="projectForm">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="projectName" class="form-control" required placeholder="e.g. Q2 2026 Procurement"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Description</label>
+            <textarea name="description" id="projectDescription" class="form-control" rows="2"
+                      placeholder="Optional notes about this project..."></textarea>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-600" style="font-weight:600;">Status</label>
+            <select name="status" id="projectStatus" class="form-select">
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <span id="submitBtnText">Create Project</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function resetProjectModal() {
+  document.getElementById('projectForm').action = '{{ url_for("projects_create") }}';
+  document.getElementById('projectForm').reset();
+  document.getElementById('projectModalTitle').textContent = 'New Project';
+  document.getElementById('submitBtnText').textContent = 'Create Project';
+  document.getElementById('projectStatus').value = 'active';
+}
+
+function editProjectModal(id, name, description, status) {
+  document.getElementById('projectForm').action = '{{ url_for("projects_edit", project_id="ID") }}'.replace('ID', id);
+  document.getElementById('projectName').value = name;
+  document.getElementById('projectDescription').value = description;
+  document.getElementById('projectStatus').value = status;
+  document.getElementById('projectModalTitle').textContent = 'Edit Project';
+  document.getElementById('submitBtnText').textContent = 'Update Project';
+}
+</script>
 {% endblock %}

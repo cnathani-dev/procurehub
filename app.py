@@ -724,7 +724,7 @@ def projects_edit(project_id):
                  project_id)
             )
             flash('Project updated.', 'success')
-            return redirect(url_for('projects_detail', project_id=project_id))
+            return redirect(url_for('projects_list'))
     return render_template('projects/form.html', project=project, action='Edit')
 
 
