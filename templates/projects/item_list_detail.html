@@ -48,7 +48,7 @@
       <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
         <span><i class="bi bi-box me-2 text-muted"></i>Items ({{ items|length }})</span>
         <div class="btn-group btn-group-sm" role="group">
-          <a href="{{ url_for('items_import') }}" class="btn btn-outline-secondary" title="Import items from Excel">
+          <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=list.id) }}" class="btn btn-outline-secondary" title="Import items from Excel">
             <i class="bi bi-upload me-1"></i>Import
           </a>
           <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Add item manually">
@@ -89,7 +89,7 @@
           <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>
           <p class="mb-3">No items in this list yet.</p>
           <div class="d-flex gap-2 justify-content-center">
-            <a href="{{ url_for('items_import') }}" class="btn btn-primary btn-sm">
+            <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=list.id) }}" class="btn btn-primary btn-sm">
               <i class="bi bi-upload me-1"></i>Import Items
             </a>
             <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">

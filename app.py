@@ -944,6 +944,149 @@ def item_lists_add_item(project_id, list_id):
     return redirect(url_for('item_lists_detail', project_id=project_id, list_id=list_id))
 
 
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/import', methods=['GET', 'POST'])
+@login_required
+def item_lists_import(project_id, list_id):
+    """Import items directly into an item list."""
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        item_list = conn.execute(
+            'SELECT * FROM item_lists WHERE id = ? AND project_id = ?',
+            (list_id, project_id)
+        ).fetchone()
+        if not project or not item_list:
+            abort(404)
+
+        if request.method == 'POST':
+            file = request.files.get('file')
+            if not file or file.filename == '':
+                flash('No file selected.', 'danger')
+                return redirect(request.url)
+            if not allowed_file(file.filename):
+                flash('Unsupported file type. Use .xlsx, .xls, or .csv', 'danger')
+                return redirect(request.url)
+            try:
+                raw = file.read()
+                df  = _read_df(raw, file.filename)
+                columns = list(df.columns)
+                if not columns:
+                    flash('File appears to be empty.', 'danger')
+                    return redirect(request.url)
+                # Save temp file
+                ts = datetime.now().strftime('%Y%m%d%H%M%S')
+                tmp_name = secure_filename(f'tmp_items_{ts}_{file.filename}')
+                with open(os.path.join(UPLOAD_FOLDER, tmp_name), 'wb') as fh:
+                    fh.write(raw)
+                # Auto-guess mappings
+                saved = load_mapping('items')
+                guesses = {
+                    'name':        saved.get('name')        or _guess(columns, ['name', 'item_name', 'item', 'product', 'description']),
+                    'category':    saved.get('category')    or _guess(columns, ['category', 'cat', 'type', 'group']),
+                    'description': saved.get('description') or _guess(columns, ['description', 'desc', 'details', 'notes']),
+                    'qty':         saved.get('qty')         or _guess(columns, ['qty', 'quantity', 'amount', 'count']),
+                    'unit':        saved.get('unit')        or _guess(columns, ['unit', 'uom', 'measure']),
+                }
+                return render_template('item_lists/map.html',
+                                       project=project, item_list=item_list,
+                                       project_id=project_id, list_id=list_id,
+                                       columns=columns, tmp=tmp_name,
+                                       guesses=guesses,
+                                       preview=df.head(3).to_dict('records'))
+            except Exception as e:
+                flash(f'Error reading file: {e}', 'danger')
+                return redirect(request.url)
+
+    return render_template('item_lists/import.html', project=project, item_list=item_list,
+                           project_id=project_id, list_id=list_id)
+
+
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/import/do', methods=['POST'])
+@login_required
+def item_lists_import_do(project_id, list_id):
+    """Apply mapping and import items into item list."""
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        item_list = conn.execute(
+            'SELECT * FROM item_lists WHERE id = ? AND project_id = ?',
+            (list_id, project_id)
+        ).fetchone()
+        if not project or not item_list:
+            abort(404)
+
+    tmp      = request.form.get('tmp', '')
+    col_name = request.form.get('col_name', '').strip()
+    col_cat  = request.form.get('col_category', '').strip()
+    col_desc = request.form.get('col_description', '').strip()
+    col_qty  = request.form.get('col_qty', '').strip()
+    col_unit = request.form.get('col_unit', '').strip()
+
+    if not tmp or not col_name:
+        flash('Missing file or name column mapping.', 'danger')
+        return redirect(url_for('item_lists_import', project_id=project_id, list_id=list_id))
+
+    tmp_path = os.path.join(UPLOAD_FOLDER, secure_filename(tmp))
+    if not os.path.exists(tmp_path):
+        flash('Upload session expired. Please re-upload.', 'danger')
+        return redirect(url_for('item_lists_import', project_id=project_id, list_id=list_id))
+
+    try:
+        with open(tmp_path, 'rb') as fh:
+            raw = fh.read()
+        df = _read_df(raw, tmp)
+
+        def get_val(row, col):
+            if not col or col not in df.columns:
+                return None
+            v = str(row.get(col, '') or '').strip()
+            return None if v.lower() in ('', 'nan') else v
+
+        with get_db() as conn:
+            count = 0
+            for _, row in df.iterrows():
+                name = get_val(row, col_name)
+                if not name:
+                    continue
+                qty = None
+                if col_qty and col_qty in df.columns:
+                    try:
+                        qty_raw = row.get(col_qty)
+                        if qty_raw is not None and str(qty_raw).lower() != 'nan':
+                            qty = float(str(qty_raw).replace(',', ''))
+                    except (ValueError, TypeError):
+                        pass
+                # Insert item
+                cur = conn.execute(
+                    'INSERT INTO items (name, category, description, qty, unit) VALUES (?,?,?,?,?)',
+                    (name, get_val(row, col_cat), get_val(row, col_desc), qty, get_val(row, col_unit))
+                )
+                item_id = cur.lastrowid
+                # Add to item list
+                conn.execute(
+                    'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?,?)',
+                    (list_id, item_id)
+                )
+                count += 1
+
+        # Persist mapping for next time
+        save_mapping('items', {
+            'name': col_name, 'category': col_cat,
+            'description': col_desc, 'qty': col_qty, 'unit': col_unit,
+        })
+
+        # Clean up temp file
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+        flash(f'Imported {count} items into "{item_list["name"]}" successfully.', 'success')
+        return redirect(url_for('item_lists_detail', project_id=project_id, list_id=list_id))
+
+    except Exception as e:
+        flash(f'Error importing items: {e}', 'danger')
+        return redirect(url_for('item_lists_import', project_id=project_id, list_id=list_id))
+
+
 @app.route('/projects/<int:project_id>/lists/<int:list_id>/delete', methods=['POST'])
 @login_required
 def item_lists_delete(project_id, list_id):
