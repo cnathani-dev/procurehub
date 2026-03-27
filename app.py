@@ -826,6 +826,7 @@ def item_lists_detail(project_id, list_id):
 @app.route('/projects/<int:project_id>/lists/<int:list_id>/edit', methods=['GET', 'POST'])
 @login_required
 def item_lists_edit(project_id, list_id):
+    """Edit list name and description (items are managed via import/add)."""
     with get_db() as conn:
         project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
         item_list = conn.execute(
@@ -834,43 +835,27 @@ def item_lists_edit(project_id, list_id):
         ).fetchone()
         if not project or not item_list:
             abort(404)
-        items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
-        selected_ids = set(
-            row['item_id'] for row in conn.execute(
-                'SELECT item_id FROM item_list_items WHERE item_list_id = ?', (list_id,)
-            ).fetchall()
-        )
 
         if request.method == 'POST':
             name = request.form.get('name', '').strip()
             if not name:
                 flash('List name is required.', 'danger')
-                return render_template('projects/item_list_form.html',
-                                       project=project, item_list=item_list,
-                                       items=items, selected_ids=selected_ids,
-                                       action='Edit')
+                return render_template('item_lists/form.html',
+                                       project=project, action='Edit', project_id=project_id)
             conn.execute(
                 'UPDATE item_lists SET name=?, description=? WHERE id=?',
                 (name,
                  request.form.get('description', '').strip() or None,
                  list_id)
             )
-            new_item_ids = set(int(i) for i in request.form.getlist('item_ids'))
-            # Replace all items: delete then re-insert
-            conn.execute('DELETE FROM item_list_items WHERE item_list_id = ?', (list_id,))
-            for iid in new_item_ids:
-                conn.execute(
-                    'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?,?)',
-                    (list_id, iid)
-                )
             flash('Item list updated.', 'success')
+            session['active_project_id'] = project_id
             return redirect(url_for('item_lists_detail',
                                     project_id=project_id, list_id=list_id))
 
-    return render_template('projects/item_list_form.html',
-                           project=project, item_list=item_list,
-                           items=items, selected_ids=selected_ids,
-                           action='Edit')
+    session['active_project_id'] = project_id
+    return render_template('item_lists/form.html',
+                           project=project, action='Edit', project_id=project_id)
 
 
 @app.route('/projects/<int:project_id>/lists/<int:list_id>/add-item', methods=['POST'])
