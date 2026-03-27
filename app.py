@@ -35,6 +35,28 @@ def get_db():
     return conn
 
 
+def save_mapping(mapping_type, mapping_dict):
+    """Persist the last-used column mapping for a given type (items / quotes)."""
+    import json as _json
+    with get_db() as conn:
+        conn.execute('''
+            INSERT INTO column_mappings (mapping_type, mapping_json)
+            VALUES (?, ?)
+            ON CONFLICT(mapping_type) DO UPDATE SET mapping_json = excluded.mapping_json
+        ''', (mapping_type, _json.dumps(mapping_dict)))
+
+
+def load_mapping(mapping_type):
+    """Load the last-used column mapping for a given type, or empty dict."""
+    import json as _json
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT mapping_json FROM column_mappings WHERE mapping_type = ?',
+            (mapping_type,)
+        ).fetchone()
+    return _json.loads(row['mapping_json']) if row else {}
+
+
 def init_db():
     with get_db() as conn:
         conn.executescript('''
@@ -108,6 +130,11 @@ def init_db():
                 notes            TEXT,
                 FOREIGN KEY (supplier_quote_id) REFERENCES supplier_quotes(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id)           REFERENCES items(id)           ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS column_mappings (
+                mapping_type TEXT PRIMARY KEY,
+                mapping_json TEXT NOT NULL
             );
         ''')
 
@@ -189,6 +216,21 @@ def items_list():
     return render_template('items/index.html', items=items)
 
 
+def _read_df(raw, filename):
+    buf = io.BytesIO(raw)
+    return pd.read_csv(buf) if filename.lower().endswith('.csv') else pd.read_excel(buf)
+
+
+def _guess(columns, candidates):
+    """Return the first column name from candidates that exists (case-insensitive), else ''."""
+    cl = [c.lower() for c in columns]
+    for cand in candidates:
+        if cand.lower() in cl:
+            return columns[cl.index(cand.lower())]
+    return ''
+
+
+# Step 1 – upload file, show mapping UI
 @app.route('/items/import', methods=['GET', 'POST'])
 @login_required
 def items_import():
@@ -202,42 +244,107 @@ def items_import():
             return redirect(request.url)
         try:
             raw = file.read()
-            buf = io.BytesIO(raw)
-            df = pd.read_csv(buf) if file.filename.lower().endswith('.csv') else pd.read_excel(buf)
-            df.columns = [str(c).lower().strip().replace(' ', '_') for c in df.columns]
-
-            if 'name' not in df.columns:
-                flash('File must contain a "name" column.', 'danger')
+            df  = _read_df(raw, file.filename)
+            columns = list(df.columns)
+            if not columns:
+                flash('File appears to be empty.', 'danger')
                 return redirect(request.url)
-
+            # Save temp file
+            ts = datetime.now().strftime('%Y%m%d%H%M%S')
+            tmp_name = secure_filename(f'tmp_items_{ts}_{file.filename}')
+            with open(os.path.join(UPLOAD_FOLDER, tmp_name), 'wb') as fh:
+                fh.write(raw)
+            # Auto-guess mappings
+            saved = load_mapping('items')
+            guesses = {
+                'name':        saved.get('name')        or _guess(columns, ['name', 'item_name', 'item', 'product', 'description']),
+                'category':    saved.get('category')    or _guess(columns, ['category', 'cat', 'type', 'group']),
+                'description': saved.get('description') or _guess(columns, ['description', 'desc', 'details', 'notes']),
+                'qty':         saved.get('qty')         or _guess(columns, ['qty', 'quantity', 'amount', 'count']),
+                'unit':        saved.get('unit')        or _guess(columns, ['unit', 'uom', 'measure']),
+            }
             mode = request.form.get('mode', 'append')
-            with get_db() as conn:
-                if mode == 'replace':
-                    conn.execute('DELETE FROM items')
-                count = 0
-                for _, row in df.iterrows():
-                    name = str(row.get('name', '')).strip()
-                    if not name or name.lower() == 'nan':
-                        continue
-                    def clean(col):
-                        v = str(row.get(col, '') or '').strip()
-                        return None if v in ('', 'nan') else v
-                    qty_val = row.get('qty', row.get('quantity', None))
-                    try:
-                        qty = float(qty_val) if qty_val is not None and str(qty_val).lower() != 'nan' else None
-                    except (ValueError, TypeError):
-                        qty = None
-                    conn.execute(
-                        'INSERT INTO items (name, category, description, qty, unit) VALUES (?,?,?,?,?)',
-                        (name, clean('category'), clean('description'), qty, clean('unit'))
-                    )
-                    count += 1
-            flash(f'Imported {count} items successfully.', 'success')
-            return redirect(url_for('items_list'))
+            return render_template('items/map.html',
+                                   columns=columns, tmp=tmp_name,
+                                   guesses=guesses, mode=mode,
+                                   preview=df.head(3).to_dict('records'))
         except Exception as e:
-            flash(f'Error processing file: {e}', 'danger')
+            flash(f'Error reading file: {e}', 'danger')
             return redirect(request.url)
     return render_template('items/import.html')
+
+
+# Step 2 – apply mapping and import
+@app.route('/items/import/do', methods=['POST'])
+@login_required
+def items_import_do():
+    tmp      = request.form.get('tmp', '')
+    mode     = request.form.get('mode', 'append')
+    col_name = request.form.get('col_name', '').strip()
+    col_cat  = request.form.get('col_category', '').strip()
+    col_desc = request.form.get('col_description', '').strip()
+    col_qty  = request.form.get('col_qty', '').strip()
+    col_unit = request.form.get('col_unit', '').strip()
+
+    if not tmp or not col_name:
+        flash('Missing file or name column mapping.', 'danger')
+        return redirect(url_for('items_import'))
+
+    tmp_path = os.path.join(UPLOAD_FOLDER, secure_filename(tmp))
+    if not os.path.exists(tmp_path):
+        flash('Upload session expired. Please re-upload.', 'danger')
+        return redirect(url_for('items_import'))
+
+    try:
+        with open(tmp_path, 'rb') as fh:
+            raw = fh.read()
+        df = _read_df(raw, tmp)
+
+        def get_val(row, col):
+            if not col or col not in df.columns:
+                return None
+            v = str(row.get(col, '') or '').strip()
+            return None if v.lower() in ('', 'nan') else v
+
+        with get_db() as conn:
+            if mode == 'replace':
+                conn.execute('DELETE FROM items')
+            count = 0
+            for _, row in df.iterrows():
+                name = get_val(row, col_name)
+                if not name:
+                    continue
+                qty = None
+                if col_qty and col_qty in df.columns:
+                    try:
+                        qty_raw = row.get(col_qty)
+                        if qty_raw is not None and str(qty_raw).lower() != 'nan':
+                            qty = float(str(qty_raw).replace(',', ''))
+                    except (ValueError, TypeError):
+                        pass
+                conn.execute(
+                    'INSERT INTO items (name, category, description, qty, unit) VALUES (?,?,?,?,?)',
+                    (name, get_val(row, col_cat), get_val(row, col_desc), qty, get_val(row, col_unit))
+                )
+                count += 1
+
+        # Persist mapping for next time
+        save_mapping('items', {
+            'name': col_name, 'category': col_cat,
+            'description': col_desc, 'qty': col_qty, 'unit': col_unit,
+        })
+
+        # Clean up temp file
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+        flash(f'Imported {count} items successfully.', 'success')
+        return redirect(url_for('items_list'))
+    except Exception as e:
+        flash(f'Error importing: {e}', 'danger')
+        return redirect(url_for('items_import'))
 
 
 @app.route('/items/edit/<int:item_id>', methods=['GET', 'POST'])
@@ -422,6 +529,7 @@ def quotes_detail(qr_id):
     return render_template('quotes/detail.html', qr=qr, items=items, suppliers=suppliers, sq_map=sq_map)
 
 
+# Step 1 – upload file, show column mapping UI
 @app.route('/quotes/<int:qr_id>/upload/<int:supplier_id>', methods=['GET', 'POST'])
 @login_required
 def quotes_upload(qr_id, supplier_id):
@@ -438,77 +546,127 @@ def quotes_upload(qr_id, supplier_id):
         ''', (qr_id,)).fetchall()
 
         if request.method == 'POST':
-            notes      = request.form.get('notes', '').strip()
-            file_path  = None
-            prices_map = {}   # item_id -> price
+            notes = request.form.get('notes', '').strip()
+            file  = request.files.get('file')
 
-            # ── Parse uploaded file ──────────────────────────────────────────
-            file = request.files.get('file')
             if file and file.filename:
                 if not allowed_file(file.filename):
                     flash('Unsupported file type. Use .xlsx, .xls, or .csv', 'danger')
                     return redirect(request.url)
                 try:
-                    raw = file.read()
-                    buf = io.BytesIO(raw)
-                    df  = pd.read_csv(buf) if file.filename.lower().endswith('.csv') else pd.read_excel(buf)
-                    df.columns = [str(c).lower().strip().replace(' ', '_') for c in df.columns]
-
-                    # Save original file
-                    ts = datetime.now().strftime('%Y%m%d%H%M%S')
-                    fname = secure_filename(f"q{qr_id}_s{supplier_id}_{ts}_{file.filename}")
-                    with open(os.path.join(UPLOAD_FOLDER, fname), 'wb') as fh:
+                    raw     = file.read()
+                    df      = _read_df(raw, file.filename)
+                    columns = list(df.columns)
+                    # Save temp file
+                    ts       = datetime.now().strftime('%Y%m%d%H%M%S')
+                    tmp_name = secure_filename(f'tmp_q{qr_id}_s{supplier_id}_{ts}_{file.filename}')
+                    with open(os.path.join(UPLOAD_FOLDER, tmp_name), 'wb') as fh:
                         fh.write(raw)
-                    file_path = fname
-
-                    # Build name → id map (case-insensitive)
-                    name_to_id = {i['name'].lower().strip(): i['id'] for i in items}
-
-                    # Detect name and price columns flexibly
-                    name_col  = next((c for c in ['item_name', 'name', 'item', 'description'] if c in df.columns), None)
-                    price_col = next((c for c in ['price', 'unit_price', 'quoted_price', 'amount', 'rate'] if c in df.columns), None)
-
-                    if name_col and price_col:
-                        for _, row in df.iterrows():
-                            key = str(row.get(name_col, '')).lower().strip()
-                            if key in name_to_id and row.get(price_col) is not None:
-                                try:
-                                    prices_map[name_to_id[key]] = float(str(row[price_col]).replace(',', ''))
-                                except (ValueError, TypeError):
-                                    pass
+                    saved = load_mapping('quotes')
+                    guesses = {
+                        'item_name': saved.get('item_name') or _guess(columns, ['item_name', 'name', 'item', 'product', 'description', 'material']),
+                        'price':     saved.get('price')     or _guess(columns, ['price', 'unit_price', 'quoted_price', 'rate', 'amount', 'cost']),
+                        'notes':     saved.get('notes')     or _guess(columns, ['notes', 'remarks', 'comment']),
+                    }
+                    return render_template('quotes/map.html',
+                                           qr=qr, supplier=supplier, items=items,
+                                           columns=columns, tmp=tmp_name, notes=notes,
+                                           guesses=guesses,
+                                           preview=df.head(3).to_dict('records'))
                 except Exception as e:
                     flash(f'Error reading file: {e}', 'danger')
                     return redirect(request.url)
 
-            # ── Manual price overrides from form ─────────────────────────────
-            for item in items:
-                key = f'price_{item["id"]}'
-                val = request.form.get(key, '').strip()
-                if val:
-                    try:
-                        prices_map[item['id']] = float(val.replace(',', ''))
-                    except ValueError:
-                        pass
-
-            if not prices_map:
-                flash('No prices found. Please check your file columns or enter prices manually.', 'warning')
-                return redirect(request.url)
-
-            # Save quote + prices
-            cur = conn.execute(
-                'INSERT INTO supplier_quotes (quote_request_id, supplier_id, file_path, notes) VALUES (?,?,?,?)',
-                (qr_id, supplier_id, file_path, notes or None)
-            )
-            sq_id = cur.lastrowid
-            for item_id, price in prices_map.items():
-                conn.execute(
-                    'INSERT INTO quote_prices (supplier_quote_id, item_id, price) VALUES (?,?,?)',
-                    (sq_id, item_id, price)
-                )
-            flash(f'Quote from {supplier["name"]} saved with {len(prices_map)} prices.', 'success')
-            return redirect(url_for('quotes_detail', qr_id=qr_id))
+            # No file — manual-only entry path
+            flash('Please upload a file or use the manual entry fields below.', 'warning')
 
     return render_template('quotes/upload.html', qr=qr, supplier=supplier, items=items)
+
+
+# Step 2a – apply column mapping from uploaded file (+ optional manual overrides)
+@app.route('/quotes/<int:qr_id>/upload/<int:supplier_id>/do', methods=['POST'])
+@login_required
+def quotes_upload_do(qr_id, supplier_id):
+    with get_db() as conn:
+        qr       = conn.execute('SELECT * FROM quote_requests WHERE id = ?', (qr_id,)).fetchone()
+        supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (supplier_id,)).fetchone()
+        if not qr or not supplier:
+            abort(404)
+        items = conn.execute('''
+            SELECT i.* FROM items i
+            JOIN quote_request_items qri ON qri.item_id = i.id
+            WHERE qri.quote_request_id = ?
+            ORDER BY i.category, i.name
+        ''', (qr_id,)).fetchall()
+
+        tmp        = request.form.get('tmp', '')
+        notes      = request.form.get('notes', '').strip()
+        col_name   = request.form.get('col_item_name', '').strip()
+        col_price  = request.form.get('col_price', '').strip()
+        col_notes  = request.form.get('col_notes', '').strip()
+        prices_map = {}
+
+        if tmp:
+            tmp_path = os.path.join(UPLOAD_FOLDER, secure_filename(tmp))
+            if not os.path.exists(tmp_path):
+                flash('Upload session expired. Please re-upload.', 'danger')
+                return redirect(url_for('quotes_upload', qr_id=qr_id, supplier_id=supplier_id))
+            try:
+                with open(tmp_path, 'rb') as fh:
+                    raw = fh.read()
+                df         = _read_df(raw, tmp)
+                name_to_id = {i['name'].lower().strip(): i['id'] for i in items}
+
+                if col_name and col_price:
+                    for _, row in df.iterrows():
+                        key = str(row.get(col_name, '')).lower().strip()
+                        if key in name_to_id and row.get(col_price) is not None:
+                            try:
+                                prices_map[name_to_id[key]] = float(str(row[col_price]).replace(',', ''))
+                            except (ValueError, TypeError):
+                                pass
+
+                # Rename to permanent file
+                ts    = datetime.now().strftime('%Y%m%d%H%M%S')
+                fname = secure_filename(f'q{qr_id}_s{supplier_id}_{ts}_{tmp.split("_", 4)[-1]}')
+                os.rename(tmp_path, os.path.join(UPLOAD_FOLDER, fname))
+                file_path = fname
+            except Exception as e:
+                flash(f'Error processing file: {e}', 'danger')
+                return redirect(url_for('quotes_upload', qr_id=qr_id, supplier_id=supplier_id))
+        else:
+            file_path = None
+
+        # Manual price overrides always win
+        for item in items:
+            val = request.form.get(f'price_{item["id"]}', '').strip()
+            if val:
+                try:
+                    prices_map[item['id']] = float(val.replace(',', ''))
+                except ValueError:
+                    pass
+
+        if not prices_map:
+            flash('No prices found. Please map columns correctly or enter prices manually.', 'warning')
+            return redirect(url_for('quotes_upload', qr_id=qr_id, supplier_id=supplier_id))
+
+        cur = conn.execute(
+            'INSERT INTO supplier_quotes (quote_request_id, supplier_id, file_path, notes) VALUES (?,?,?,?)',
+            (qr_id, supplier_id, file_path, notes or None)
+        )
+        sq_id = cur.lastrowid
+        for item_id, price in prices_map.items():
+            conn.execute(
+                'INSERT INTO quote_prices (supplier_quote_id, item_id, price) VALUES (?,?,?)',
+                (sq_id, item_id, price)
+            )
+
+    # Persist mapping for next time
+    if tmp:
+        save_mapping('quotes', {'item_name': col_name, 'price': col_price, 'notes': col_notes})
+
+    flash(f'Quote from {supplier["name"]} saved with {len(prices_map)} prices.', 'success')
+    return redirect(url_for('quotes_detail', qr_id=qr_id))
 
 
 @app.route('/quotes/<int:qr_id>/comparison')
