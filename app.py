@@ -349,6 +349,20 @@ def items_list():
     return render_template('items/index.html', items=items)
 
 
+@app.route('/items/<int:item_id>/qty', methods=['POST'])
+@login_required
+def items_update_qty(item_id):
+    """Update item quantity inline."""
+    try:
+        qty = request.form.get('qty', '').strip()
+        qty = float(qty) if qty else None
+        with get_db() as conn:
+            conn.execute('UPDATE items SET qty = ? WHERE id = ?', (qty, item_id))
+        return jsonify({'success': True, 'qty': qty})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 def _read_df(raw, filename):
     buf = io.BytesIO(raw)
     return pd.read_csv(buf) if filename.lower().endswith('.csv') else pd.read_excel(buf)

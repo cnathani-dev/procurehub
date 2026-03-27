@@ -12,114 +12,296 @@
   </a>
 </div>
 
-<div class="card">
-  <div class="card-body p-0">
-    {% if items %}
-    <div class="table-responsive">
-      <table class="table table-hover mb-0" id="itemsTable">
-        <thead>
-          <tr>
-            <th class="ps-4">#</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Description</th>
-            <th>Qty</th>
-            <th>Unit</th>
-            <th class="pe-4 text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+<!-- Filters & Controls -->
+<div class="card mb-3">
+  <div class="card-body p-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-6">
+        <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Search</label>
+        <input type="text" id="itemSearch" class="form-control form-control-sm"
+               placeholder="Filter by name or description…"/>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Category</label>
+        <select id="categoryFilter" class="form-select form-select-sm">
+          <option value="">All Categories</option>
+          {% set categories = [] %}
           {% for item in items %}
-          <tr>
-            <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
-            <td><strong>{{ item.name }}</strong></td>
-            <td>
-              {% if item.category %}
-                <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-weight:500;">{{ item.category }}</span>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td class="text-muted">
-              {% if item.description %}
-                <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none"
-                        data-bs-toggle="modal"
-                        data-bs-target="#descModal{{ item.id }}"
-                        style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;">
-                  {{ item.description[:80] }}{% if item.description|length > 80 %}...{% endif %}
-                </button>
-                <!-- Description Modal -->
-                <div class="modal fade" id="descModal{{ item.id }}" tabindex="-1">
-                  <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title">{{ item.name }} – Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                      </div>
-                      <div class="modal-body description-display">
-                        {{ item.description|format_description }}
-                      </div>
-                      <div class="modal-footer">
-                        <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-primary">
-                          <i class="bi bi-pencil me-1"></i>Edit Item
-                        </a>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>{{ item.qty if item.qty is not none else '—' }}</td>
-            <td>{{ item.unit or '—' }}</td>
-            <td class="pe-4 text-end">
-              <a href="{{ url_for('items_edit', item_id=item.id) }}"
-                 class="btn btn-sm btn-outline-secondary me-1">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
-                    class="d-inline"
-                    onsubmit="return confirm('Delete {{ item.name }}?')">
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
-            </td>
-          </tr>
+            {% if item.category and item.category not in categories %}
+              {% set _ = categories.append(item.category) %}
+              <option value="{{ item.category }}">{{ item.category }}</option>
+            {% endif %}
           {% endfor %}
-        </tbody>
-      </table>
+          {% if '' in [item.category for item in items] %}
+          <option value="uncategorized">Uncategorized</option>
+          {% endif %}
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Sort</label>
+        <select id="sortBy" class="form-select form-select-sm">
+          <option value="name-asc">Name (A-Z)</option>
+          <option value="name-desc">Name (Z-A)</option>
+          <option value="category-asc">Category (A-Z)</option>
+          <option value="qty-desc">Qty (High to Low)</option>
+          <option value="qty-asc">Qty (Low to High)</option>
+        </select>
+      </div>
     </div>
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-box" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
-      <p class="mb-1">No items yet.</p>
-      <a href="{{ url_for('items_import') }}" class="btn btn-primary mt-2">
-        <i class="bi bi-upload me-1"></i>Import from Excel / CSV
-      </a>
-    </div>
-    {% endif %}
   </div>
 </div>
+
+<!-- Items grouped by category -->
+{% if items %}
+<div id="itemsContainer">
+  {% set ns = namespace(current_cat=None, group_count=0) %}
+  {% for item in items %}
+    {% if item.category != ns.current_cat %}
+      {% if ns.group_count > 0 %}
+        </tbody></table></div></div></div>
+      {% endif %}
+      {% set ns.current_cat = item.category %}
+      {% set ns.group_count = ns.group_count + 1 %}
+      <div class="card mb-3 category-group" data-category="{{ item.category or 'uncategorized' }}">
+        <div class="card-header p-3 d-flex align-items-center gap-2" style="cursor:pointer;"
+             onclick="this.parentElement.querySelector('.category-items').classList.toggle('d-none')">
+          <i class="bi bi-chevron-down category-toggle" style="transition: transform 0.2s;"></i>
+          <span class="fw-600" style="font-weight:600;">
+            {% if item.category %}{{ item.category }}{% else %}Uncategorized{% endif %}
+          </span>
+          <span class="badge bg-secondary ms-auto">
+            {% set cat_count = items|selectattr('category', 'equalto', item.category)|list|length %}
+            {% if not item.category %}
+              {% set cat_count = items|selectattr('category', 'none')|list|length %}
+            {% endif %}
+            {{ cat_count }}
+          </span>
+        </div>
+        <div class="card-body category-items p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr style="font-size:.85rem;">
+                  <th class="ps-4">#</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th style="width:100px;">Qty</th>
+                  <th>Unit</th>
+                  <th class="pe-4 text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+    {% endif %}
+
+    <tr class="item-row" data-item-id="{{ item.id }}" data-item-name="{{ item.name.lower() }}"
+        data-item-desc="{{ (item.description or '').lower() }}" data-category="{{ item.category or 'uncategorized' }}"
+        data-qty="{{ item.qty or 0 }}">
+      <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
+      <td><strong>{{ item.name }}</strong></td>
+      <td class="text-muted">
+        {% if item.description %}
+          <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none"
+                  data-bs-toggle="modal"
+                  data-bs-target="#descModal{{ item.id }}"
+                  style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:left;">
+            {{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}
+          </button>
+          <!-- Description Modal -->
+          <div class="modal fade" id="descModal{{ item.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">{{ item.name }} – Details</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body description-display">
+                  {{ item.description|format_description }}
+                </div>
+                <div class="modal-footer">
+                  <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-primary">
+                    <i class="bi bi-pencil me-1"></i>Edit Item
+                  </a>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <input type="number" class="form-control form-control-sm qty-input"
+               value="{{ item.qty if item.qty is not none else '' }}"
+               placeholder="—"
+               data-item-id="{{ item.id }}"
+               step="0.01"
+               style="width:100px;"/>
+      </td>
+      <td class="text-muted">{{ item.unit or '—' }}</td>
+      <td class="pe-4 text-end">
+        <a href="{{ url_for('items_edit', item_id=item.id) }}"
+           class="btn btn-sm btn-outline-secondary me-1">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
+              class="d-inline"
+              onsubmit="return confirm('Delete {{ item.name }}?')">
+          <button type="submit" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+      </td>
+    </tr>
+
+  {% endfor %}
+  {% if ns.group_count > 0 %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+  {% endif %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-box" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+    <p class="mb-1">No items yet.</p>
+    <a href="{{ url_for('items_import') }}" class="btn btn-primary mt-2">
+      <i class="bi bi-upload me-1"></i>Import from Excel / CSV
+    </a>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Simple live search
 document.addEventListener('DOMContentLoaded', () => {
-  const input = document.createElement('input');
-  input.className = 'form-control mb-3';
-  input.placeholder = 'Search items…';
-  const card = document.querySelector('.card');
-  card.parentNode.insertBefore(input, card);
+  const searchInput = document.getElementById('itemSearch');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const sortBy = document.getElementById('sortBy');
+  const itemRows = document.querySelectorAll('.item-row');
+  const categoryGroups = document.querySelectorAll('.category-group');
+  const qtyInputs = document.querySelectorAll('.qty-input');
 
-  input.addEventListener('input', () => {
-    const q = input.value.toLowerCase();
-    document.querySelectorAll('#itemsTable tbody tr').forEach(row => {
-      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  // Inline quantity update
+  qtyInputs.forEach(input => {
+    input.addEventListener('blur', () => {
+      const itemId = input.dataset.itemId;
+      const qty = input.value.trim();
+      if (qty !== '' || input.value !== input.placeholder) {
+        fetch(`{{ url_for('items_update_qty', item_id='ID') }}`.replace('ID', itemId), {
+          method: 'POST',
+          body: new FormData((() => {
+            const form = new FormData();
+            form.append('qty', qty || '');
+            return form;
+          })())
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            input.dataset.originalValue = qty;
+            const row = input.closest('.item-row');
+            row.dataset.qty = qty || '0';
+            // Re-sort if needed
+            if (sortBy.value.startsWith('qty-')) {
+              sortItems();
+            }
+          }
+        })
+        .catch(e => {
+          alert('Failed to update quantity: ' + e);
+          input.focus();
+        });
+      }
     });
+
+    // Save on Enter
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+  });
+
+  function filterItems() {
+    const searchTerm = (searchInput.value || '').toLowerCase();
+    const selectedCategory = categoryFilter.value;
+
+    itemRows.forEach(row => {
+      const matchesSearch =
+        row.dataset.itemName.includes(searchTerm) ||
+        row.dataset.itemDesc.includes(searchTerm);
+      const matchesCategory = !selectedCategory || row.dataset.category === selectedCategory;
+
+      row.style.display = matchesSearch && matchesCategory ? '' : 'none';
+    });
+
+    // Hide empty category groups
+    categoryGroups.forEach(group => {
+      const visibleItems = group.querySelectorAll('.item-row:not([style*="display: none"])');
+      group.style.display = visibleItems.length > 0 ? '' : 'none';
+    });
+  }
+
+  function sortItems() {
+    const sortValue = sortBy.value;
+    const rows = Array.from(document.querySelectorAll('.item-row'));
+
+    rows.sort((a, b) => {
+      let aVal, bVal;
+      if (sortValue === 'name-asc') {
+        aVal = a.dataset.itemName;
+        bVal = b.dataset.itemName;
+        return aVal.localeCompare(bVal);
+      } else if (sortValue === 'name-desc') {
+        aVal = a.dataset.itemName;
+        bVal = b.dataset.itemName;
+        return bVal.localeCompare(aVal);
+      } else if (sortValue === 'category-asc') {
+        aVal = a.dataset.category;
+        bVal = b.dataset.category;
+        return aVal.localeCompare(bVal);
+      } else if (sortValue === 'qty-desc') {
+        aVal = parseFloat(a.dataset.qty) || 0;
+        bVal = parseFloat(b.dataset.qty) || 0;
+        return bVal - aVal;
+      } else if (sortValue === 'qty-asc') {
+        aVal = parseFloat(a.dataset.qty) || 0;
+        bVal = parseFloat(b.dataset.qty) || 0;
+        return aVal - bVal;
+      }
+    });
+
+    // Re-insert sorted rows into their category groups
+    rows.forEach(row => {
+      const group = document.querySelector(`[data-category="${row.dataset.category}"]`);
+      if (group) {
+        group.querySelector('tbody').appendChild(row);
+      }
+    });
+  }
+
+  // Collapsible category headers
+  document.querySelectorAll('.card-header').forEach(header => {
+    if (header.parentElement.classList.contains('category-group')) {
+      header.addEventListener('click', () => {
+        const toggle = header.querySelector('.category-toggle');
+        const items = header.nextElementSibling;
+        items.classList.toggle('d-none');
+        toggle.style.transform = items.classList.contains('d-none') ? 'rotate(-90deg)' : 'rotate(0deg)';
+      });
+    }
+  });
+
+  // Event listeners
+  searchInput.addEventListener('input', filterItems);
+  categoryFilter.addEventListener('change', filterItems);
+  sortBy.addEventListener('change', () => {
+    sortItems();
+    filterItems();
   });
 });
 </script>
