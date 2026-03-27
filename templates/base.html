@@ -173,9 +173,9 @@
     </a>
 
     <div class="nav-section-label">Catalog</div>
-    <a href="{{ url_for('items_list') }}"
-       class="nav-link {% if request.endpoint and 'items' in request.endpoint %}active{% endif %}">
-      <i class="bi bi-box"></i>Items
+    <a href="{{ url_for('item_lists_list') }}"
+       class="nav-link {% if request.endpoint == 'item_lists_list' %}active{% endif %}">
+      <i class="bi bi-list-ul"></i>Item Lists
     </a>
     <a href="{{ url_for('suppliers_list') }}"
        class="nav-link {% if request.endpoint and 'suppliers' in request.endpoint %}active{% endif %}">
@@ -214,7 +214,7 @@
 
 <!-- ── Main ───────────────────────────────────────────────────────────── -->
 <div class="main-content">
-  <!-- Project Selector -->
+  <!-- Project Selector & Settings -->
   {% if all_projects %}
   <div class="d-flex justify-content-end align-items-center mb-3" style="padding-bottom: 1rem; border-bottom: 1px solid #e9ecef;">
     <div class="d-flex align-items-center gap-2">
@@ -234,6 +234,9 @@
           {% endfor %}
         </ul>
       </div>
+      <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary" title="Settings">
+        <i class="bi bi-gear"></i>
+      </a>
     </div>
   </div>
   {% endif %}

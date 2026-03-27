@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Item Lists – {{ project.name }} – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>{{ project.name }}: Item Lists</h1>
+    <p>{{ lists|length }} item list{{ 's' if lists|length != 1 }}</p>
+  </div>
+  <a href="{{ url_for('item_lists_create', project_id=project.id) }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>New Item List
+  </a>
+</div>
+
+{% if lists %}
+<div class="row g-3 mb-4">
+  {% for list in lists %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100" style="cursor:pointer; transition: box-shadow 0.2s;"
+         onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'"
+         onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.06)'"
+         onclick="window.location.href='{{ url_for('item_lists_detail', project_id=project.id, list_id=list.id) }}'">
+      <div class="card-header py-3 px-4 d-flex justify-content-between align-items-start" style="cursor:default;" onclick="event.stopPropagation();">
+        <div style="flex:1;">
+          <h6 class="card-title mb-0">{{ list.name }}</h6>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" style="padding: 0.25rem 0.5rem;">
+            <i class="bi bi-gear" style="font-size: 0.8rem;"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" style="min-width: 140px;">
+            <li>
+              <a href="{{ url_for('item_lists_edit', project_id=project.id, list_id=list.id) }}" class="dropdown-item">
+                <i class="bi bi-pencil me-2"></i>Edit Items
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="POST" action="{{ url_for('item_lists_delete', project_id=project.id, list_id=list.id) }}" style="display:inline;"
+                    onsubmit="event.stopPropagation(); return confirm('Delete {{ list.name }}?')">
+                <button type="submit" class="dropdown-item text-danger">
+                  <i class="bi bi-trash me-2"></i>Delete
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="card-body p-4">
+        <div class="d-flex gap-3 mb-3">
+          <div>
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Items</div>
+            <div class="fw-700" style="font-size: 1.5rem; font-weight: 700;">{{ list.item_count }}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Quote Requests</div>
+            <div class="fw-700" style="font-size: 1.5rem; font-weight: 700;">{{ list.qr_count }}</div>
+          </div>
+        </div>
+        <a href="{{ url_for('item_lists_detail', project_id=project.id, list_id=list.id) }}"
+           class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+          <i class="bi bi-arrow-right me-1"></i>View Items
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-inbox" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+    <p class="mb-1">No item lists yet.</p>
+    <a href="{{ url_for('item_lists_create', project_id=project.id) }}" class="btn btn-primary mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Create Item List
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

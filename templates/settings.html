@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Settings – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Settings</h1>
+    <p>Manage your projects</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="resetProjectModal()">
+    <i class="bi bi-plus-lg me-1"></i>New Project
+  </button>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if projects %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Name</th>
+            <th>Status</th>
+            <th>Item Lists</th>
+            <th>Quote Requests</th>
+            <th>Created</th>
+            <th class="pe-4 text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in projects %}
+          <tr onclick="window.location.href='{{ url_for('item_lists_list') }}'">
+            <td class="ps-4"><strong>{{ p.name }}</strong></td>
+            <td>
+              <span class="badge {% if p.status == 'active' %}badge-open{% else %}badge-closed{% endif %}" style="font-size:.75rem;">
+                {{ p.status|capitalize }}
+              </span>
+            </td>
+            <td>{{ p.list_count }}</td>
+            <td>{{ p.qr_count }}</td>
+            <td class="text-muted">{{ p.created_at[:10] }}</td>
+            <td class="pe-4 text-end" onclick="event.stopPropagation();">
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                  <i class="bi bi-gear"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#projectModal"
+                            onclick="editProjectModal({{ p.id }}, '{{ p.name }}', '{{ p.description or '' }}', '{{ p.status }}')">
+                      <i class="bi bi-pencil me-2"></i>Edit
+                    </button>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form method="POST" action="{{ url_for('projects_delete', project_id=p.id) }}" style="display:inline;"
+                          onsubmit="return confirm('Delete {{ p.name }}? This cannot be undone.')">
+                      <button type="submit" class="dropdown-item text-danger">
+                        <i class="bi bi-trash me-2"></i>Delete
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-kanban" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+      <p class="mb-1">No projects yet.</p>
+      <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="resetProjectModal()">
+        <i class="bi bi-plus-lg me-1"></i>Create First Project
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Project Modal (Create/Edit) -->
+<div class="modal fade" id="projectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="projectModalTitle">New Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="projectForm">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="projectName" class="form-control" required placeholder="e.g. Q2 2026 Procurement"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Description</label>
+            <textarea name="description" id="projectDescription" class="form-control" rows="2"
+                      placeholder="Optional notes about this project..."></textarea>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-600" style="font-weight:600;">Status</label>
+            <select name="status" id="projectStatus" class="form-select">
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <span id="submitBtnText">Create Project</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function resetProjectModal() {
+  document.getElementById('projectForm').action = '{{ url_for("projects_create") }}';
+  document.getElementById('projectForm').reset();
+  document.getElementById('projectModalTitle').textContent = 'New Project';
+  document.getElementById('submitBtnText').textContent = 'Create Project';
+  document.getElementById('projectStatus').value = 'active';
+}
+
+function editProjectModal(id, name, description, status) {
+  const baseUrl = '{{ url_for("projects_edit", project_id=0) }}'.replace('/0', '/' + id);
+  document.getElementById('projectForm').action = baseUrl;
+  document.getElementById('projectName').value = name;
+  document.getElementById('projectDescription').value = description;
+  document.getElementById('projectStatus').value = status;
+  document.getElementById('projectModalTitle').textContent = 'Edit Project';
+  document.getElementById('submitBtnText').textContent = 'Update Project';
+}
+</script>
+{% endblock %}

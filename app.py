@@ -340,6 +340,56 @@ def dashboard():
                            project_count=project_count, recent=recent)
 
 
+# ── Item Lists (from Active Project) ──────────────────────────────────────────
+@app.route('/item-lists')
+@login_required
+def item_lists_list():
+    """Show item lists from the active project."""
+    active_project_id = session.get('active_project_id')
+    if not active_project_id:
+        flash('No active project selected.', 'warning')
+        return redirect(url_for('settings'))
+
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (active_project_id,)).fetchone()
+        if not project:
+            abort(404)
+        lists = conn.execute('''
+            SELECT il.*,
+                   COUNT(DISTINCT ili.item_id)  AS item_count,
+                   COUNT(DISTINCT qr.id)         AS qr_count
+            FROM   item_lists il
+            LEFT JOIN item_list_items  ili ON ili.item_list_id = il.id
+            LEFT JOIN quote_requests   qr  ON qr.item_list_id  = il.id
+            WHERE  il.project_id = ?
+            GROUP BY il.id
+            ORDER BY il.created_at DESC
+        ''', (active_project_id,)).fetchall()
+
+    return render_template('item_lists/index.html', project=project, lists=lists)
+
+
+# ── Settings (Project Management) ──────────────────────────────────────────────
+@app.route('/settings')
+@login_required
+def settings():
+    """Project management and settings."""
+    with get_db() as conn:
+        projects = conn.execute('''
+            SELECT p.*,
+                   COUNT(DISTINCT il.id)  AS list_count,
+                   COUNT(DISTINCT qr.id)  AS qr_count
+            FROM   projects p
+            LEFT JOIN item_lists      il ON il.project_id   = p.id
+            LEFT JOIN quote_requests  qr ON qr.item_list_id IN (
+                          SELECT id FROM item_lists WHERE project_id = p.id)
+            GROUP BY p.id
+            ORDER BY p.created_at DESC
+        ''').fetchall()
+
+    return render_template('settings.html', projects=projects)
+
+
 # ── Items ─────────────────────────────────────────────────────────────────────
 @app.route('/items')
 @login_required
