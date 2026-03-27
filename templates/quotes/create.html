@@ -39,13 +39,13 @@
         <input type="text" id="itemSearch" class="form-control form-control-sm mb-2"
                placeholder="Filter items…"/>
         {% if items %}
-        <div class="check-group" id="itemCheckGroup">
+        <div id="itemCheckGroup">
           {% set ns = namespace(current_cat=None) %}
           {% for item in items %}
             {% if item.category != ns.current_cat %}
               {% set ns.current_cat = item.category %}
               {% if ns.current_cat %}
-              <div class="px-2 py-1 text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;font-weight:700;border-top:1px solid #eee;margin-top:.3rem;">
+              <div class="category-header">
                 {{ ns.current_cat }}
               </div>
               {% endif %}
@@ -53,7 +53,7 @@
             <div class="form-check item-check-row">
               <input class="form-check-input item-check" type="checkbox"
                      name="item_ids" value="{{ item.id }}" id="item{{ item.id }}"/>
-              <label class="form-check-label w-100" for="item{{ item.id }}" style="cursor:pointer;">
+              <label class="form-check-label" for="item{{ item.id }}" style="cursor:pointer;">
                 <span class="fw-600" style="font-weight:600;">{{ item.name }}</span>
                 {% if item.qty %}<span class="text-muted ms-1" style="font-size:.8rem;">× {{ item.qty }}{{ ' ' + item.unit if item.unit else '' }}</span>{% endif %}
               </label>

@@ -84,6 +84,42 @@
     .check-group .form-check { padding: .35rem .5rem; border-radius: 6px; }
     .check-group .form-check:hover { background: #f8f9fa; }
 
+    /* ── Item selection list ── */
+    .item-check-row {
+      padding: 0.5rem 0.5rem !important;
+      margin: 0.25rem 0;
+      border-radius: 6px;
+      display: flex;
+      align-items: flex-start;
+      transition: background 0.15s;
+    }
+    .item-check-row:hover { background: #f8f9fa; }
+    .item-check-row .form-check-input {
+      margin-top: 0.3rem;
+      margin-right: 0.75rem;
+      flex-shrink: 0;
+    }
+    .item-check-row .form-check-label {
+      flex-grow: 1;
+      margin: 0;
+      padding: 0.25rem 0;
+    }
+    .category-header {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 700;
+      color: #6c757d;
+      padding: 0.75rem 0.5rem 0.5rem;
+      margin-top: 0.5rem;
+      border-top: 1px solid #e9ecef;
+    }
+    .category-header:first-child {
+      margin-top: 0;
+      border-top: none;
+      padding-top: 0.25rem;
+    }
+
     /* ── Description Formatting ── */
     .description-display {
       line-height: 1.6;
