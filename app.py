@@ -962,6 +962,49 @@ def quotes_export(qr_id):
         return redirect(request.referrer or url_for('quotes_list'))
 
 
+# ── Global Price Comparison ───────────────────────────────────────────────────
+@app.route('/comparison')
+@login_required
+def comparison_global():
+    """Show global price comparison across all quote requests and suppliers."""
+    with get_db() as conn:
+        # Only items that have at least one price
+        items = conn.execute('''
+            SELECT DISTINCT i.id, i.name, i.category, i.qty, i.unit
+            FROM items i
+            JOIN quote_prices qp ON qp.item_id = i.id
+            ORDER BY i.category, i.name
+        ''').fetchall()
+
+        # Only suppliers that have actually submitted prices
+        suppliers = conn.execute('''
+            SELECT DISTINCT s.id, s.name
+            FROM suppliers s
+            JOIN supplier_quotes sq ON sq.supplier_id = s.id
+            JOIN quote_prices qp ON qp.supplier_quote_id = sq.id
+            ORDER BY s.name
+        ''').fetchall()
+
+        # Global best price per (item, supplier) across all quote requests
+        price_matrix = {item['id']: {} for item in items}
+        raw_prices = conn.execute('''
+            SELECT qp.item_id, sq.supplier_id, MIN(qp.price) AS best_price
+            FROM quote_prices qp
+            JOIN supplier_quotes sq ON sq.id = qp.supplier_quote_id
+            WHERE qp.price IS NOT NULL
+            GROUP BY qp.item_id, sq.supplier_id
+        ''').fetchall()
+
+        for row in raw_prices:
+            if row['item_id'] in price_matrix:
+                price_matrix[row['item_id']][row['supplier_id']] = row['best_price']
+
+    return render_template('comparison.html',
+                           items=items,
+                           suppliers=suppliers,
+                           price_matrix=price_matrix)
+
+
 # ── Uploaded file download ────────────────────────────────────────────────────
 @app.route('/uploads/<path:filename>')
 @login_required
