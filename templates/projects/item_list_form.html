@@ -5,7 +5,7 @@
 <div class="page-header">
   <div class="d-flex align-items-center gap-2 mb-1">
     <a href="{{ url_for('projects_detail', project_id=project_id) }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-      <i class="bi bi-arrow-left me-1"></i>{{ project_name }}
+      <i class="bi bi-arrow-left me-1"></i>{{ project.name }}
     </a>
   </div>
   <h1>{% if list %}Edit{% else %}New{% endif %} Item List</h1>

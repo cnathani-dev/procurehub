@@ -5,11 +5,11 @@
 <div class="page-header">
   <div class="d-flex align-items-center gap-2 mb-1">
     <a href="{{ url_for('projects_detail', project_id=project_id) }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-      <i class="bi bi-arrow-left me-1"></i>{{ project_name }}
+      <i class="bi bi-arrow-left me-1"></i>{{ project.name }}
     </a>
     <span class="text-muted">/</span>
     <a href="{{ url_for('item_lists_detail', project_id=project_id, list_id=list_id) }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-      {{ list_name }}
+      {{ item_list.name }}
     </a>
   </div>
   <h1>New Quote Request</h1>

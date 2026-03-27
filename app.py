@@ -773,7 +773,7 @@ def item_lists_create(project_id):
     return render_template('projects/item_list_form.html',
                            project=project, item_list=None,
                            items=items, selected_ids=set(),
-                           action='Create')
+                           action='Create', project_id=project_id)
 
 
 @app.route('/projects/<int:project_id>/lists/<int:list_id>')
@@ -909,7 +909,8 @@ def item_list_quotes_create(project_id, list_id):
                 return render_template('projects/quote_create.html',
                                        project=project, item_list=item_list,
                                        items=all_items, list_item_ids=list_item_ids,
-                                       suppliers=suppliers)
+                                       suppliers=suppliers, project_id=project_id,
+                                       list_id=list_id)
 
             cur = conn.execute(
                 'INSERT INTO quote_requests (title, notes, item_list_id) VALUES (?,?,?)',
@@ -934,7 +935,8 @@ def item_list_quotes_create(project_id, list_id):
     return render_template('projects/quote_create.html',
                            project=project, item_list=item_list,
                            items=all_items, list_item_ids=list_item_ids,
-                           suppliers=suppliers)
+                           suppliers=suppliers, project_id=project_id,
+                           list_id=list_id)
 
 
 # ── Suppliers ─────────────────────────────────────────────────────────────────
