@@ -350,16 +350,19 @@ def items_list():
     # Group items by category
     from collections import defaultdict
     grouped = defaultdict(list)
+    categories_set = set()
+
     for item in items:
         cat = item['category'] or 'Uncategorized'
-        grouped[cat].append(dict(item))
+        grouped[cat].append(item)
+        categories_set.add(cat)
 
     # Sort categories with Uncategorized last
     categories = sorted(
-        [k for k in grouped.keys() if k != 'Uncategorized'],
+        [c for c in categories_set if c != 'Uncategorized'],
         key=str.lower
     )
-    if 'Uncategorized' in grouped:
+    if 'Uncategorized' in categories_set:
         categories.append('Uncategorized')
 
     return render_template('items/index.html', items=items, grouped_items=grouped, categories=categories)
