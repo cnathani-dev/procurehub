@@ -373,6 +373,19 @@ def items_update_qty(item_id):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/items/<int:item_id>/category', methods=['POST'])
+@login_required
+def items_update_category(item_id):
+    """Update item category inline."""
+    try:
+        category = request.form.get('category', '').strip() or None
+        with get_db() as conn:
+            conn.execute('UPDATE items SET category = ? WHERE id = ?', (category, item_id))
+        return jsonify({'success': True, 'category': category})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 def _read_df(raw, filename):
     buf = io.BytesIO(raw)
     return pd.read_csv(buf) if filename.lower().endswith('.csv') else pd.read_excel(buf)
@@ -469,8 +482,10 @@ def items_edit(item_id):
                 )
             )
             flash('Item updated.', 'success')
-            return redirect(url_for('items_list'))
-    return render_template('items/edit.html', item=item)
+            # Redirect back to referrer (item list detail page) or fallback
+            next_url = request.form.get('next') or request.referrer or url_for('item_lists_list')
+            return redirect(next_url)
+    return render_template('items/edit.html', item=item, next=request.referrer)
 
 
 @app.route('/items/<int:item_id>/generate-supplier-desc', methods=['POST'])
@@ -674,10 +689,15 @@ def item_lists_detail(project_id, list_id):
             GROUP BY qr.id
             ORDER BY qr.created_at DESC
         ''', (list_id,)).fetchall()
+
+    # Get distinct categories for this list
+    categories = sorted(set(i['category'] for i in items if i['category']))
+
     session['active_project_id'] = project_id
     return render_template('projects/item_list_detail.html',
                            project=project, item_list=item_list,
                            items=items, quote_requests=quote_requests,
+                           categories=categories,
                            project_id=project_id, list_id=list_id)
 
 

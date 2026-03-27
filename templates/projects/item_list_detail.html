@@ -24,7 +24,7 @@
       <ul class="dropdown-menu dropdown-menu-end">
         <li>
           <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=item_list.id) }}" class="dropdown-item">
-            <i class="bi bi-pencil me-2"></i>Edit Items
+            <i class="bi bi-pencil me-2"></i>Edit List
           </a>
         </li>
         <li><hr class="dropdown-divider"></li>
@@ -41,45 +41,97 @@
   </div>
 </div>
 
-<div class="row g-4">
-  <!-- Left: Items -->
-  <div class="col-lg-6">
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items-pane" type="button" role="tab">
+      <i class="bi bi-box me-1"></i>Items <span class="badge bg-light text-dark">{{ items|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-pane" type="button" role="tab">
+      <i class="bi bi-file-earmark-text me-1"></i>Quote Requests <span class="badge bg-light text-dark">{{ quote_requests|length }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <!-- Items Tab -->
+  <div class="tab-pane fade show active" id="items-pane" role="tabpanel">
     <div class="card">
-      <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-box me-2 text-muted"></i>Items ({{ items|length }})</span>
-        <div class="btn-group btn-group-sm" role="group">
-          <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=item_list.id) }}" class="btn btn-outline-secondary" title="Import items from Excel">
-            <i class="bi bi-upload me-1"></i>Import
-          </a>
-          <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Add item manually">
-            <i class="bi bi-plus-lg me-1"></i>Add Item
-          </button>
+      <!-- Filter/Sort Bar -->
+      <div class="card-header" style="background: #fff;">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Filter by name..." style="max-width: 200px;"/>
+
+          <select id="categoryFilter" class="form-select form-select-sm" style="max-width: 150px;">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+
+          <select id="sortSelect" class="form-select form-select-sm" style="max-width: 150px;">
+            <option value="category_name">Category, then Name</option>
+            <option value="name">Name (A-Z)</option>
+            <option value="qty_up">Qty (Low → High)</option>
+            <option value="qty_down">Qty (High → Low)</option>
+          </select>
+
+          <div class="ms-auto d-flex gap-2">
+            <a href="{{ url_for('item_lists_import', project_id=project_id, list_id=item_list.id) }}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-upload me-1"></i>Import
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+              <i class="bi bi-plus-lg me-1"></i>Add Item
+            </button>
+          </div>
         </div>
       </div>
+
+      <!-- Items Table -->
       <div class="card-body p-0">
         {% if items %}
         <div class="table-responsive">
-          <table class="table table-hover mb-0">
+          <table class="table table-hover mb-0" id="itemsTable">
             <thead>
               <tr>
-                <th class="ps-4">Name</th>
+                <th class="ps-4" style="width:40%;">Name</th>
                 <th>Qty</th>
-                <th class="pe-4 text-end">Category</th>
+                <th>Unit</th>
+                <th>Category</th>
+                <th class="pe-4 text-end" style="width:50px;"></th>
               </tr>
             </thead>
             <tbody>
+              {% set ns = namespace(current_cat=None) %}
               {% for item in items %}
-              <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('items_edit', item_id=item.id) }}'">
-                <td class="ps-4"><strong>{{ item.name }}</strong></td>
-                <td class="text-muted">{{ item.qty if item.qty is not none else '—' }}{% if item.unit %} {{ item.unit }}{% endif %}</td>
-                <td class="pe-4 text-end">
-                  {% if item.category %}
-                  <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.7rem;">
-                    {{ item.category }}
-                  </span>
-                  {% else %}—{% endif %}
-                </td>
-              </tr>
+                {% if item.category != ns.current_cat %}
+                  {% set ns.current_cat = item.category %}
+                  <tr class="category-header-row" data-category="{{ item.category or 'Uncategorized' }}" style="background:#f9f9f9;font-weight:600;color:#666;font-size:0.85rem;">
+                    <td class="ps-4 py-2" colspan="5">{{ item.category or 'Uncategorized' }}</td>
+                  </tr>
+                {% endif %}
+                <tr class="item-row" data-search="{{ item.name|lower }} {{ item.category|lower if item.category }}" data-category="{{ item.category or 'Uncategorized' }}" data-qty="{{ item.qty or 0 }}">
+                  <td class="ps-4"><strong>{{ item.name }}</strong></td>
+                  <td>
+                    <input type="number" class="qty-input form-control form-control-sm" data-item-id="{{ item.id }}" value="{{ item.qty or '' }}" style="width:70px;" step="0.01" placeholder="—"/>
+                  </td>
+                  <td class="text-muted" style="font-size:0.9rem;">{{ item.unit or '—' }}</td>
+                  <td>
+                    <select class="category-select form-select form-select-sm" data-item-id="{{ item.id }}" style="max-width: 120px;">
+                      <option value="">—</option>
+                      {% for cat in categories %}
+                      <option value="{{ cat }}" {% if cat == item.category %}selected{% endif %}>{{ cat }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td class="pe-4 text-end">
+                    <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-sm btn-link" title="Edit item">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                  </td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
@@ -89,7 +141,7 @@
           <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>
           <p class="mb-3">No items in this list yet.</p>
           <div class="d-flex gap-2 justify-content-center">
-            <a href="{{ url_for('item_lists_import', project_id=project.id, list_id=item_list.id) }}" class="btn btn-primary btn-sm">
+            <a href="{{ url_for('item_lists_import', project_id=project_id, list_id=item_list.id) }}" class="btn btn-primary btn-sm">
               <i class="bi bi-upload me-1"></i>Import Items
             </a>
             <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
@@ -102,19 +154,23 @@
     </div>
   </div>
 
-  <!-- Right: Quote Requests -->
-  <div class="col-lg-6">
-    <div class="card h-100 d-flex flex-column">
-      <div class="card-header py-3 px-4">
-        <span><i class="bi bi-file-earmark-text me-2 text-muted"></i>Quote Requests ({{ quote_requests|length }})</span>
+  <!-- Quote Requests Tab -->
+  <div class="tab-pane fade" id="qr-pane" role="tabpanel">
+    <div class="card">
+      <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-text me-2 text-muted"></i>Quote Requests</span>
+        <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=item_list.id) }}" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-lg me-1"></i>New Quote Request
+        </a>
       </div>
-      <div class="card-body p-0 flex-grow-1 d-flex flex-column">
+      <div class="card-body p-0">
         {% if quote_requests %}
-        <div class="table-responsive flex-grow-1">
+        <div class="table-responsive">
           <table class="table table-hover mb-0">
             <thead>
               <tr>
                 <th class="ps-4">Title</th>
+                <th>Items</th>
                 <th>Suppliers</th>
                 <th class="pe-4 text-end">Created</th>
               </tr>
@@ -123,6 +179,7 @@
               {% for qr in quote_requests %}
               <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('quotes_detail', qr_id=qr.id) }}'">
                 <td class="ps-4"><strong>{{ qr.title }}</strong></td>
+                <td class="text-muted" style="font-size:.85rem;">{{ qr.item_count }}</td>
                 <td class="text-muted" style="font-size:.85rem;">{{ qr.supplier_count }}</td>
                 <td class="pe-4 text-end text-muted" style="font-size:.85rem;">{{ qr.created_at[:10] }}</td>
               </tr>
@@ -130,13 +187,8 @@
             </tbody>
           </table>
         </div>
-        <div class="card-footer p-3 bg-light">
-          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=item_list.id) }}" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg me-1"></i>New Quote Request
-          </a>
-        </div>
         {% else %}
-        <div class="text-center py-4 text-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+        <div class="text-center py-5 text-muted">
           <i class="bi bi-file-earmark-text mb-2" style="font-size:1.5rem;opacity:0.5;"></i>
           <p class="mb-3">No quote requests yet.</p>
           <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=item_list.id) }}" class="btn btn-primary">
@@ -192,4 +244,109 @@
     </div>
   </div>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Get table and filter elements
+const searchInput = document.getElementById('searchInput');
+const categoryFilter = document.getElementById('categoryFilter');
+const sortSelect = document.getElementById('sortSelect');
+const itemTable = document.getElementById('itemsTable');
+const itemRows = Array.from(itemTable.querySelectorAll('.item-row'));
+
+// Filter and sort function
+function updateDisplay() {
+  const searchTerm = searchInput.value.toLowerCase();
+  const selectedCategory = categoryFilter.value;
+  const sortMode = sortSelect.value;
+
+  // Filter rows
+  itemRows.forEach(row => {
+    const matchesSearch = row.dataset.search.includes(searchTerm);
+    const matchesCategory = !selectedCategory || row.dataset.category === selectedCategory;
+    const show = matchesSearch && matchesCategory;
+    row.style.display = show ? '' : 'none';
+  });
+
+  // Show/hide category headers
+  const categoryHeaders = itemTable.querySelectorAll('.category-header-row');
+  categoryHeaders.forEach(header => {
+    const cat = header.dataset.category;
+    const hasVisibleItems = itemRows.some(row => row.dataset.category === cat && row.style.display !== 'none');
+    header.style.display = hasVisibleItems ? '' : 'none';
+  });
+
+  // Sort rows (if not grouping by category)
+  if (sortMode !== 'category_name') {
+    itemRows.sort((a, b) => {
+      const aName = a.dataset.search.split(' ')[0];
+      const bName = b.dataset.search.split(' ')[0];
+      const aQty = parseFloat(a.dataset.qty) || 0;
+      const bQty = parseFloat(b.dataset.qty) || 0;
+
+      if (sortMode === 'name') return aName.localeCompare(bName);
+      if (sortMode === 'qty_up') return aQty - bQty;
+      if (sortMode === 'qty_down') return bQty - aQty;
+      return 0;
+    });
+
+    // Re-insert sorted rows
+    const tbody = itemTable.querySelector('tbody');
+    itemRows.forEach(row => {
+      if (row.style.display !== 'none') {
+        tbody.appendChild(row);
+      }
+    });
+  }
+}
+
+// Event listeners
+searchInput.addEventListener('input', updateDisplay);
+categoryFilter.addEventListener('change', updateDisplay);
+sortSelect.addEventListener('change', updateDisplay);
+
+// Inline qty edit
+document.querySelectorAll('.qty-input').forEach(input => {
+  input.addEventListener('blur', function() {
+    const itemId = this.dataset.itemId;
+    const qty = this.value.trim();
+    if (!qty) return; // Don't save empty values
+
+    fetch(`{{ url_for('items_update_qty', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `qty=${encodeURIComponent(qty)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) alert('Error updating quantity: ' + data.error);
+    })
+    .catch(e => alert('Error: ' + e));
+  });
+});
+
+// Inline category edit
+document.querySelectorAll('.category-select').forEach(select => {
+  select.addEventListener('change', function() {
+    const itemId = this.dataset.itemId;
+    const category = this.value || '';
+
+    fetch(`{{ url_for('items_update_category', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `category=${encodeURIComponent(category)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Error updating category: ' + data.error);
+        this.value = '';
+      }
+    })
+    .catch(e => alert('Error: ' + e));
+  });
+});
+</script>
 {% endblock %}
