@@ -30,7 +30,7 @@
         </thead>
         <tbody>
           {% for r in requests %}
-          <tr>
+          <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('quotes_detail', qr_id=r.id) }}'" class="quote-row">
             <td class="ps-4"><strong>{{ r.title }}</strong></td>
             <td>
               <span class="badge badge-{{ r.status }}" style="font-size:.75rem;">
@@ -45,16 +45,24 @@
               </span>
             </td>
             <td class="text-muted">{{ r.created_at[:10] }}</td>
-            <td class="pe-4 text-end d-flex gap-1 justify-content-end">
-              <a href="{{ url_for('quotes_detail', qr_id=r.id) }}"
-                 class="btn btn-sm btn-outline-primary">View</a>
+            <td class="pe-4 text-end d-flex gap-1 justify-content-end" onclick="event.stopPropagation();">
+              <a href="{{ url_for('quotes_export', qr_id=r.id) }}"
+                 class="btn btn-sm btn-outline-info" download
+                 title="Download as Excel">
+                <i class="bi bi-download"></i>
+              </a>
               {% if r.received_count > 0 %}
               <a href="{{ url_for('quotes_comparison', qr_id=r.id) }}"
-                 class="btn btn-sm btn-outline-success">Compare</a>
+                 class="btn btn-sm btn-outline-success"
+                 title="Compare Prices">
+                <i class="bi bi-table"></i>
+              </a>
               {% endif %}
               <form method="POST" action="{{ url_for('quotes_delete', qr_id=r.id) }}"
-                    class="d-inline" onsubmit="return confirm('Delete this quote request?')">
-                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    class="d-inline" onsubmit="event.stopPropagation(); return confirm('Delete this quote request?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
               </form>
             </td>
           </tr>

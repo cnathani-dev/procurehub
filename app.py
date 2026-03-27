@@ -95,13 +95,14 @@ def init_db():
             );
 
             CREATE TABLE IF NOT EXISTS items (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                name        TEXT NOT NULL,
-                category    TEXT,
-                description TEXT,
-                qty         REAL,
-                unit        TEXT,
-                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                name                  TEXT NOT NULL,
+                category              TEXT,
+                description           TEXT,
+                supplier_description  TEXT,
+                qty                   REAL,
+                unit                  TEXT,
+                created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS suppliers (
@@ -165,6 +166,12 @@ def init_db():
                 mapping_json TEXT NOT NULL
             );
         ''')
+
+        # Migrate: add supplier_description column if it doesn't exist (for existing DBs)
+        try:
+            conn.execute('ALTER TABLE items ADD COLUMN supplier_description TEXT')
+        except Exception:
+            pass  # Column already exists
 
         # Seed default admin account
         admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
@@ -443,11 +450,12 @@ def items_edit(item_id):
             abort(404)
         if request.method == 'POST':
             conn.execute(
-                'UPDATE items SET name=?,category=?,description=?,qty=?,unit=? WHERE id=?',
+                'UPDATE items SET name=?,category=?,description=?,supplier_description=?,qty=?,unit=? WHERE id=?',
                 (
                     request.form['name'].strip(),
                     request.form.get('category', '').strip() or None,
                     request.form.get('description', '').strip() or None,
+                    request.form.get('supplier_description', '').strip() or None,
                     request.form.get('qty') or None,
                     request.form.get('unit', '').strip() or None,
                     item_id,
@@ -456,6 +464,44 @@ def items_edit(item_id):
             flash('Item updated.', 'success')
             return redirect(url_for('items_list'))
     return render_template('items/edit.html', item=item)
+
+
+@app.route('/items/<int:item_id>/generate-supplier-desc', methods=['POST'])
+@login_required
+def generate_supplier_desc(item_id):
+    """Generate supplier description from internal description using Claude AI."""
+    import json as _json
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return _json.jsonify({'error': 'ANTHROPIC_API_KEY not configured'}), 400
+
+    with get_db() as conn:
+        item = conn.execute('SELECT description FROM items WHERE id = ?', (item_id,)).fetchone()
+        if not item or not item['description']:
+            return _json.jsonify({'error': 'No internal description found'}), 400
+
+    try:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=300,
+            messages=[
+                {
+                    'role': 'user',
+                    'content': f"""Given this internal item description, generate a concise technical specification suitable for sending to a supplier. Focus only on specs, materials, and measurements. Remove any internal notes, budget info, or procurement context. Plain text, max 3 sentences.
+
+Internal Description:
+{item['description']}
+
+Supplier-facing description:"""
+                }
+            ]
+        )
+        supplier_desc = message.content[0].text.strip()
+        return _json.jsonify({'supplier_description': supplier_desc})
+    except Exception as e:
+        return _json.jsonify({'error': str(e)}), 500
 
 
 @app.route('/items/delete/<int:item_id>', methods=['POST'])
@@ -811,6 +857,100 @@ def quotes_delete(qr_id):
         conn.execute('DELETE FROM quote_requests WHERE id = ?', (qr_id,))
     flash('Quote request deleted.', 'success')
     return redirect(url_for('quotes_list'))
+
+
+@app.route('/quotes/<int:qr_id>/export', methods=['GET'])
+@login_required
+def quotes_export(qr_id):
+    """Export quote request as Excel file."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    with get_db() as conn:
+        qr = conn.execute('SELECT * FROM quote_requests WHERE id = ?', (qr_id,)).fetchone()
+        if not qr:
+            abort(404)
+
+        items = conn.execute('''
+            SELECT i.* FROM items i
+            JOIN quote_request_items qri ON qri.item_id = i.id
+            WHERE qri.quote_request_id = ?
+            ORDER BY i.category, i.name
+        ''', (qr_id,)).fetchall()
+
+        suppliers = conn.execute('''
+            SELECT s.* FROM suppliers s
+            JOIN quote_request_suppliers qrs ON qrs.supplier_id = s.id
+            WHERE qrs.quote_request_id = ?
+            ORDER BY s.name
+        ''', (qr_id,)).fetchall()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Items'
+
+    # Header row styling
+    header_fill = PatternFill(start_color='4F8EF7', end_color='4F8EF7', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+
+    # Sheet 1: Items
+    headers = ['Item Name', 'Category', 'Quantity', 'Unit', 'Supplier Description']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    for row_idx, item in enumerate(items, 2):
+        supplier_desc = item['supplier_description'] or item['description'] or ''
+        ws.cell(row=row_idx, column=1, value=item['name'])
+        ws.cell(row=row_idx, column=2, value=item['category'] or '')
+        ws.cell(row=row_idx, column=3, value=item['qty'] if item['qty'] is not None else '')
+        ws.cell(row=row_idx, column=4, value=item['unit'] or '')
+        ws.cell(row=row_idx, column=5, value=supplier_desc)
+
+    # Auto-width columns
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 10
+    ws.column_dimensions['E'].width = 40
+
+    # Freeze top row
+    ws.freeze_panes = 'A2'
+
+    # Sheet 2: Details
+    ws2 = wb.create_sheet('Details')
+    ws2.cell(row=1, column=1, value='Quote Request Details').font = Font(bold=True, size=12)
+    ws2.cell(row=3, column=1, value='Title:').font = Font(bold=True)
+    ws2.cell(row=3, column=2, value=qr['title'])
+    ws2.cell(row=4, column=1, value='Created:').font = Font(bold=True)
+    ws2.cell(row=4, column=2, value=qr['created_at'])
+    ws2.cell(row=5, column=1, value='Status:').font = Font(bold=True)
+    ws2.cell(row=5, column=2, value=qr['status'].capitalize())
+    if qr['notes']:
+        ws2.cell(row=6, column=1, value='Notes:').font = Font(bold=True)
+        ws2.cell(row=6, column=2, value=qr['notes'])
+
+    ws2.cell(row=8, column=1, value='Suppliers:').font = Font(bold=True)
+    for row_idx, supplier in enumerate(suppliers, 9):
+        ws2.cell(row=row_idx, column=1, value=supplier['name'])
+        ws2.cell(row=row_idx, column=2, value=supplier['phone'] or '')
+
+    ws2.column_dimensions['A'].width = 20
+    ws2.column_dimensions['B'].width = 35
+
+    # Return as file
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"quote-{qr['title'][:20]}-{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        buf,
+        download_name=filename,
+        as_attachment=True,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 
 # ── Uploaded file download ────────────────────────────────────────────────────

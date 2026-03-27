@@ -20,13 +20,27 @@
             <label class="form-label fw-600" style="font-weight:600;">Category</label>
             <input type="text" name="category" class="form-control" value="{{ item.category or '' }}"/>
           </div>
-          <div class="mb-3">
-            <label class="form-label fw-600" style="font-weight:600;">Description</label>
+          <div class="mb-4">
+            <label class="form-label fw-600" style="font-weight:600;">Internal Description</label>
             <textarea name="description" class="form-control" rows="5" id="descInput">{{ item.description or '' }}</textarea>
             <small class="text-muted d-block mt-2">
               💡 Tip: Use <code>Header:</code> to create sections, or <code># Header</code> for markdown style.
-              Bullet lists with <code>- item</code> are supported.
+              Bullet lists with <code>- item</code> are supported. This is only seen internally.
             </small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Supplier Description</label>
+            <textarea name="supplier_description" class="form-control" rows="3" id="supplierDescInput">{{ item.supplier_description or '' }}</textarea>
+            <small class="text-muted d-block mt-2">
+              This is sent to suppliers in quote requests. Auto-generate from internal description below.
+            </small>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="generateBtn" onclick="generateSupplierDesc()">
+              <i class="bi bi-sparkles me-1"></i>Generate with AI
+            </button>
+            <div id="generateStatus" style="display:none;margin-top:0.75rem;">
+              <small class="text-info"><i class="bi bi-hourglass-split me-1"></i><span id="statusText">Generating...</span></small>
+            </div>
           </div>
           <div class="row g-3 mb-4">
             <div class="col-6">
@@ -65,6 +79,39 @@
 
 {% block scripts %}
 <script>
+function generateSupplierDesc() {
+  const itemId = {{ item.id }};
+  const generateBtn = document.getElementById('generateBtn');
+  const supplierInput = document.getElementById('supplierDescInput');
+  const statusDiv = document.getElementById('generateStatus');
+  const statusText = document.getElementById('statusText');
+
+  generateBtn.disabled = true;
+  statusDiv.style.display = 'block';
+  statusText.textContent = 'Generating...';
+
+  fetch(`/items/${itemId}/generate-supplier-desc`, {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        statusText.textContent = '❌ ' + data.error;
+        if (data.error.includes('not configured')) {
+          statusText.textContent = '❌ ANTHROPIC_API_KEY not set. Set it in your environment and restart the app.';
+        }
+      } else {
+        supplierInput.value = data.supplier_description;
+        statusText.textContent = '✓ Generated successfully!';
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+      }
+    })
+    .catch(e => {
+      statusText.textContent = '❌ Error: ' + e.message;
+    })
+    .finally(() => {
+      generateBtn.disabled = false;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('descInput');
   const preview = document.getElementById('descPreview');

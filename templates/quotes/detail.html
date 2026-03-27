@@ -17,7 +17,10 @@
     </p>
   </div>
   <div class="d-flex gap-2">
-    <form method="POST" action="{{ url_for('quotes_toggle_status', qr_id=qr.id) }}">
+    <a href="{{ url_for('quotes_export', qr_id=qr.id) }}" class="btn btn-outline-info btn-sm" download>
+      <i class="bi bi-download me-1"></i>Download Excel
+    </a>
+    <form method="POST" action="{{ url_for('quotes_toggle_status', qr_id=qr.id) }}" style="display:inline;">
       <button type="submit" class="btn btn-outline-secondary btn-sm">
         {% if qr.status == 'open' %}
           <i class="bi bi-lock me-1"></i>Close Request
