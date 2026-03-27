@@ -862,94 +862,104 @@ def quotes_delete(qr_id):
 @login_required
 def quotes_export(qr_id):
     """Export quote request as Excel file."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill
 
-    with get_db() as conn:
-        qr = conn.execute('SELECT * FROM quote_requests WHERE id = ?', (qr_id,)).fetchone()
-        if not qr:
-            abort(404)
+        with get_db() as conn:
+            qr = conn.execute('SELECT * FROM quote_requests WHERE id = ?', (qr_id,)).fetchone()
+            if not qr:
+                abort(404)
 
-        items = conn.execute('''
-            SELECT i.* FROM items i
-            JOIN quote_request_items qri ON qri.item_id = i.id
-            WHERE qri.quote_request_id = ?
-            ORDER BY i.category, i.name
-        ''', (qr_id,)).fetchall()
+            items = conn.execute('''
+                SELECT i.* FROM items i
+                JOIN quote_request_items qri ON qri.item_id = i.id
+                WHERE qri.quote_request_id = ?
+                ORDER BY i.category, i.name
+            ''', (qr_id,)).fetchall()
 
-        suppliers = conn.execute('''
-            SELECT s.* FROM suppliers s
-            JOIN quote_request_suppliers qrs ON qrs.supplier_id = s.id
-            WHERE qrs.quote_request_id = ?
-            ORDER BY s.name
-        ''', (qr_id,)).fetchall()
+            suppliers = conn.execute('''
+                SELECT s.* FROM suppliers s
+                JOIN quote_request_suppliers qrs ON qrs.supplier_id = s.id
+                WHERE qrs.quote_request_id = ?
+                ORDER BY s.name
+            ''', (qr_id,)).fetchall()
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = 'Items'
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Items'
 
-    # Header row styling
-    header_fill = PatternFill(start_color='4F8EF7', end_color='4F8EF7', fill_type='solid')
-    header_font = Font(bold=True, color='FFFFFF')
+        # Header row styling
+        header_fill = PatternFill(start_color='4F8EF7', end_color='4F8EF7', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
 
-    # Sheet 1: Items
-    headers = ['Item Name', 'Category', 'Quantity', 'Unit', 'Supplier Description']
-    for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
+        # Sheet 1: Items
+        headers = ['Item Name', 'Category', 'Quantity', 'Unit', 'Supplier Description']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
 
-    for row_idx, item in enumerate(items, 2):
-        supplier_desc = item['supplier_description'] or item['description'] or ''
-        ws.cell(row=row_idx, column=1, value=item['name'])
-        ws.cell(row=row_idx, column=2, value=item['category'] or '')
-        ws.cell(row=row_idx, column=3, value=item['qty'] if item['qty'] is not None else '')
-        ws.cell(row=row_idx, column=4, value=item['unit'] or '')
-        ws.cell(row=row_idx, column=5, value=supplier_desc)
+        for row_idx, item in enumerate(items, 2):
+            # Handle supplier_description safely - it may not exist in older DBs
+            supplier_desc = ''
+            try:
+                supplier_desc = item['supplier_description'] or item['description'] or ''
+            except (KeyError, TypeError):
+                supplier_desc = item.get('description') or ''
 
-    # Auto-width columns
-    ws.column_dimensions['A'].width = 25
-    ws.column_dimensions['B'].width = 15
-    ws.column_dimensions['C'].width = 12
-    ws.column_dimensions['D'].width = 10
-    ws.column_dimensions['E'].width = 40
+            ws.cell(row=row_idx, column=1, value=item['name'])
+            ws.cell(row=row_idx, column=2, value=item['category'] or '')
+            ws.cell(row=row_idx, column=3, value=item['qty'] if item['qty'] is not None else '')
+            ws.cell(row=row_idx, column=4, value=item['unit'] or '')
+            ws.cell(row=row_idx, column=5, value=supplier_desc)
 
-    # Freeze top row
-    ws.freeze_panes = 'A2'
+        # Auto-width columns
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 15
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 10
+        ws.column_dimensions['E'].width = 40
 
-    # Sheet 2: Details
-    ws2 = wb.create_sheet('Details')
-    ws2.cell(row=1, column=1, value='Quote Request Details').font = Font(bold=True, size=12)
-    ws2.cell(row=3, column=1, value='Title:').font = Font(bold=True)
-    ws2.cell(row=3, column=2, value=qr['title'])
-    ws2.cell(row=4, column=1, value='Created:').font = Font(bold=True)
-    ws2.cell(row=4, column=2, value=qr['created_at'])
-    ws2.cell(row=5, column=1, value='Status:').font = Font(bold=True)
-    ws2.cell(row=5, column=2, value=qr['status'].capitalize())
-    if qr['notes']:
-        ws2.cell(row=6, column=1, value='Notes:').font = Font(bold=True)
-        ws2.cell(row=6, column=2, value=qr['notes'])
+        # Freeze top row
+        ws.freeze_panes = 'A2'
 
-    ws2.cell(row=8, column=1, value='Suppliers:').font = Font(bold=True)
-    for row_idx, supplier in enumerate(suppliers, 9):
-        ws2.cell(row=row_idx, column=1, value=supplier['name'])
-        ws2.cell(row=row_idx, column=2, value=supplier['phone'] or '')
+        # Sheet 2: Details
+        ws2 = wb.create_sheet('Details')
+        ws2.cell(row=1, column=1, value='Quote Request Details').font = Font(bold=True, size=12)
+        ws2.cell(row=3, column=1, value='Title:').font = Font(bold=True)
+        ws2.cell(row=3, column=2, value=qr['title'])
+        ws2.cell(row=4, column=1, value='Created:').font = Font(bold=True)
+        ws2.cell(row=4, column=2, value=qr['created_at'])
+        ws2.cell(row=5, column=1, value='Status:').font = Font(bold=True)
+        ws2.cell(row=5, column=2, value=qr['status'].capitalize())
+        if qr['notes']:
+            ws2.cell(row=6, column=1, value='Notes:').font = Font(bold=True)
+            ws2.cell(row=6, column=2, value=qr['notes'])
 
-    ws2.column_dimensions['A'].width = 20
-    ws2.column_dimensions['B'].width = 35
+        ws2.cell(row=8, column=1, value='Suppliers:').font = Font(bold=True)
+        for row_idx, supplier in enumerate(suppliers, 9):
+            ws2.cell(row=row_idx, column=1, value=supplier['name'])
+            ws2.cell(row=row_idx, column=2, value=supplier['phone'] or '')
 
-    # Return as file
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
+        ws2.column_dimensions['A'].width = 20
+        ws2.column_dimensions['B'].width = 35
 
-    filename = f"quote-{qr['title'][:20]}-{datetime.now().strftime('%Y%m%d')}.xlsx"
-    return send_file(
-        buf,
-        download_name=filename,
-        as_attachment=True,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+        # Return as file
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        filename = f"quote-{qr['title'][:20]}-{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(
+            buf,
+            download_name=filename,
+            as_attachment=True,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        flash(f'Error exporting quote: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('quotes_list'))
 
 
 # ── Uploaded file download ────────────────────────────────────────────────────
