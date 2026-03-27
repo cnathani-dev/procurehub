@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="page-header">
-  <div class="d-flex align-items-center gap-2 mb-1">
+  <div class="d-flex align-items-center gap-2 mb-2">
     <a href="{{ url_for('projects_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
       <i class="bi bi-arrow-left me-1"></i>Projects
     </a>
@@ -12,10 +12,35 @@
       {{ project.name }}
     </a>
   </div>
-  <h1>{{ list.name }}</h1>
-  {% if list.description %}
-  <p class="text-muted">{{ list.description }}</p>
-  {% endif %}
+  <div class="d-flex align-items-start justify-content-between">
+    <div>
+      <h1 class="mb-0">{{ list.name }}</h1>
+      {% if list.description %}
+      <p class="text-muted mt-2 mb-0">{{ list.description }}</p>
+      {% endif %}
+    </div>
+    <div class="btn-group btn-group-sm" role="group">
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-gear"></i>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=list.id) }}" class="dropdown-item">
+            <i class="bi bi-pencil me-2"></i>Edit Items
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <form method="POST" action="{{ url_for('item_lists_delete', project_id=project_id, list_id=list.id) }}" style="display:inline;"
+                onsubmit="return confirm('Delete {{ list.name }}?')">
+            <button type="submit" class="dropdown-item text-danger">
+              <i class="bi bi-trash me-2"></i>Delete List
+            </button>
+          </form>
+        </li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <div class="row g-4">
@@ -25,7 +50,7 @@
       <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
         <span><i class="bi bi-box me-2 text-muted"></i>Items ({{ items|length }})</span>
         <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=list.id) }}" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-pencil me-1"></i>Edit
+          <i class="bi bi-pencil me-1"></i>Edit Items
         </a>
       </div>
       <div class="card-body p-0">
@@ -43,7 +68,7 @@
               {% for item in items %}
               <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('items_edit', item_id=item.id) }}'">
                 <td class="ps-4"><strong>{{ item.name }}</strong></td>
-                <td class="text-muted">{{ item.qty if item.qty else '—' }}{% if item.unit %} {{ item.unit }}{% endif %}</td>
+                <td class="text-muted">{{ item.qty if item.qty is not none else '—' }}{% if item.unit %} {{ item.unit }}{% endif %}</td>
                 <td class="pe-4 text-end">
                   {% if item.category %}
                   <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:.7rem;">
@@ -70,16 +95,13 @@
 
   <!-- Right: Quote Requests -->
   <div class="col-lg-6">
-    <div class="card">
-      <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
+    <div class="card h-100 d-flex flex-column">
+      <div class="card-header py-3 px-4">
         <span><i class="bi bi-file-earmark-text me-2 text-muted"></i>Quote Requests ({{ quote_requests|length }})</span>
-        <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=list.id) }}" class="btn btn-sm btn-primary">
-          <i class="bi bi-plus-lg me-1"></i>New Quote Request
-        </a>
       </div>
-      <div class="card-body p-0">
+      <div class="card-body p-0 flex-grow-1 d-flex flex-column">
         {% if quote_requests %}
-        <div class="table-responsive">
+        <div class="table-responsive flex-grow-1">
           <table class="table table-hover mb-0">
             <thead>
               <tr>
@@ -90,7 +112,7 @@
             </thead>
             <tbody>
               {% for qr in quote_requests %}
-              <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('quotes_detail', quote_id=qr.id) }}'">
+              <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('quotes_detail', qr_id=qr.id) }}'">
                 <td class="ps-4"><strong>{{ qr.title }}</strong></td>
                 <td class="text-muted" style="font-size:.85rem;">{{ qr.supplier_count }}</td>
                 <td class="pe-4 text-end text-muted" style="font-size:.85rem;">{{ qr.created_at[:10] }}</td>
@@ -99,10 +121,16 @@
             </tbody>
           </table>
         </div>
+        <div class="card-footer p-3 bg-light">
+          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=list.id) }}" class="btn btn-primary w-100">
+            <i class="bi bi-plus-lg me-1"></i>New Quote Request
+          </a>
+        </div>
         {% else %}
-        <div class="text-center py-4 text-muted">
-          <p class="mb-2">No quote requests yet.</p>
-          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=list.id) }}" class="btn btn-sm btn-primary">
+        <div class="text-center py-4 text-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+          <i class="bi bi-file-earmark-text mb-2" style="font-size:1.5rem;opacity:0.5;"></i>
+          <p class="mb-3">No quote requests yet.</p>
+          <a href="{{ url_for('item_list_quotes_create', project_id=project_id, list_id=list.id) }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i>Create Quote Request
           </a>
         </div>

@@ -2,74 +2,116 @@
 {% block title %}{{ project.name }} – ProcureHub{% endblock %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-start">
-  <div>
-    <div class="d-flex align-items-center gap-2 mb-1">
-      <a href="{{ url_for('projects_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-        <i class="bi bi-arrow-left me-1"></i>Projects
-      </a>
+<div class="page-header">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <a href="{{ url_for('projects_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
+      <i class="bi bi-arrow-left me-1"></i>Projects
+    </a>
+  </div>
+  <div class="d-flex align-items-start justify-content-between">
+    <div>
+      <h1 class="mb-0">{{ project.name }}</h1>
+      <p class="mb-0 mt-2">
+        <span class="badge {% if project.status == 'active' %}badge-open{% else %}badge-closed{% endif %}">{{ project.status|capitalize }}</span>
+        {% if project.description %}<span class="text-muted ms-2" style="font-size:.9rem;">{{ project.description }}</span>{% endif %}
+      </p>
     </div>
-    <h1>{{ project.name }}</h1>
-    <p>
-      <span class="badge {% if project.status == 'active' %}badge-open{% else %}badge-closed{% endif %} me-2">{{ project.status|capitalize }}</span>
-      Created {{ project.created_at[:10] }}
-      {% if project.description %} · {{ project.description[:50] }}{% if project.description|length > 50 %}...{% endif %}{% endif %}
-    </p>
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-gear"></i>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <a href="{{ url_for('projects_edit', project_id=project.id) }}" class="dropdown-item">
+            <i class="bi bi-pencil me-2"></i>Edit Project
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <form method="POST" action="{{ url_for('projects_delete', project_id=project.id) }}" style="display:inline;"
+                onsubmit="return confirm('Delete {{ project.name }}? This cannot be undone.')">
+            <button type="submit" class="dropdown-item text-danger">
+              <i class="bi bi-trash me-2"></i>Delete
+            </button>
+          </form>
+        </li>
+      </ul>
+    </div>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-list me-2 text-muted"></i>Item Lists</span>
-    <a href="{{ url_for('item_lists_create', project_id=project.id) }}" class="btn btn-sm btn-primary">
-      <i class="bi bi-plus-lg me-1"></i>New Item List
-    </a>
-  </div>
-  <div class="card-body p-0">
-    {% if lists %}
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th class="ps-4">Name</th>
-            <th>Items</th>
-            <th>Quote Requests</th>
-            <th>Created</th>
-            <th class="pe-4 text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for il in lists %}
-          <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('item_lists_detail', project_id=project.id, list_id=il.id) }}'">
-            <td class="ps-4"><strong>{{ il.name }}</strong></td>
-            <td>{{ il.item_count }}</td>
-            <td>{{ il.qr_count }}</td>
-            <td class="text-muted">{{ il.created_at[:10] }}</td>
-            <td class="pe-4 text-end d-flex gap-1 justify-content-end" onclick="event.stopPropagation();">
-              <a href="{{ url_for('item_lists_edit', project_id=project.id, list_id=il.id) }}"
-                 class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-pencil"></i>
+<!-- Item Lists Section -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h5 class="mb-0"><i class="bi bi-list-ul me-2 text-muted"></i>Item Lists</h5>
+  <a href="{{ url_for('item_lists_create', project_id=project.id) }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>New Item List
+  </a>
+</div>
+
+{% if lists %}
+<div class="row g-3 mb-4">
+  {% for list in lists %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100" style="cursor:pointer; transition: box-shadow 0.2s;"
+         onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'"
+         onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.06)'"
+         onclick="window.location.href='{{ url_for('item_lists_detail', project_id=project.id, list_id=list.id) }}'">
+      <div class="card-header py-3 px-4 d-flex justify-content-between align-items-start" style="cursor:default;" onclick="event.stopPropagation();">
+        <div style="flex:1;">
+          <h6 class="card-title mb-0">{{ list.name }}</h6>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" style="padding: 0.25rem 0.5rem;">
+            <i class="bi bi-gear" style="font-size: 0.8rem;"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" style="min-width: 140px;">
+            <li>
+              <a href="{{ url_for('item_lists_edit', project_id=project.id, list_id=list.id) }}" class="dropdown-item">
+                <i class="bi bi-pencil me-2"></i>Edit Items
               </a>
-              <form method="POST" action="{{ url_for('item_lists_delete', project_id=project.id, list_id=il.id) }}"
-                    class="d-inline" onsubmit="return confirm('Delete {{ il.name }}?')">
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                  <i class="bi bi-trash"></i>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="POST" action="{{ url_for('item_lists_delete', project_id=project.id, list_id=list.id) }}" style="display:inline;"
+                    onsubmit="event.stopPropagation(); return confirm('Delete {{ list.name }}?')">
+                <button type="submit" class="dropdown-item text-danger">
+                  <i class="bi bi-trash me-2"></i>Delete
                 </button>
               </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="card-body p-4">
+        <div class="d-flex gap-3 mb-3">
+          <div>
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Items</div>
+            <div class="fw-700" style="font-size: 1.5rem; font-weight: 700;">{{ list.item_count }}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Quote Requests</div>
+            <div class="fw-700" style="font-size: 1.5rem; font-weight: 700;">{{ list.qr_count }}</div>
+          </div>
+        </div>
+        <a href="{{ url_for('item_lists_detail', project_id=project.id, list_id=list.id) }}"
+           class="btn btn-sm btn-primary" onclick="event.stopPropagation();">
+          <i class="bi bi-arrow-right me-1"></i>Open
+        </a>
+      </div>
     </div>
-    {% else %}
-    <div class="text-center py-4 text-muted">
-      <p class="mb-2">No item lists yet.</p>
-      <a href="{{ url_for('item_lists_create', project_id=project.id) }}" class="btn btn-sm btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>Create Item List
-      </a>
-    </div>
-    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-inbox" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+    <p class="mb-1">No item lists yet.</p>
+    <a href="{{ url_for('item_lists_create', project_id=project.id) }}" class="btn btn-primary mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Create Item List
+    </a>
   </div>
 </div>
+{% endif %}
 {% endblock %}
