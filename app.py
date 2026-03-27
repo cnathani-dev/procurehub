@@ -795,17 +795,13 @@ def item_lists_create(project_id):
         project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
         if not project:
             abort(404)
-        items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
 
         if request.method == 'POST':
             name = request.form.get('name', '').strip()
             if not name:
                 flash('List name is required.', 'danger')
-                return render_template('projects/item_list_form.html',
-                                       project=project, item_list=None,
-                                       items=items, selected_ids=set(),
-                                       action='Create')
-            item_ids = request.form.getlist('item_ids')
+                return render_template('item_lists/form.html',
+                                       project=project, action='Create')
 
             cur = conn.execute(
                 'INSERT INTO item_lists (project_id, name, description) VALUES (?,?,?)',
@@ -814,19 +810,12 @@ def item_lists_create(project_id):
                  request.form.get('description', '').strip() or None)
             )
             list_id = cur.lastrowid
-            for iid in item_ids:
-                conn.execute(
-                    'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?,?)',
-                    (list_id, int(iid))
-                )
             flash('Item list created.', 'success')
             return redirect(url_for('item_lists_detail',
                                     project_id=project_id, list_id=list_id))
 
-    return render_template('projects/item_list_form.html',
-                           project=project, item_list=None,
-                           items=items, selected_ids=set(),
-                           action='Create', project_id=project_id)
+    return render_template('item_lists/form.html',
+                           project=project, action='Create')
 
 
 @app.route('/projects/<int:project_id>/lists/<int:list_id>')
@@ -912,6 +901,47 @@ def item_lists_edit(project_id, list_id):
                            project=project, item_list=item_list,
                            items=items, selected_ids=selected_ids,
                            action='Edit')
+
+
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/add-item', methods=['POST'])
+@login_required
+def item_lists_add_item(project_id, list_id):
+    """Add a manually created item to an item list."""
+    with get_db() as conn:
+        # Verify project and list exist
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        item_list = conn.execute(
+            'SELECT * FROM item_lists WHERE id = ? AND project_id = ?',
+            (list_id, project_id)
+        ).fetchone()
+        if not project or not item_list:
+            abort(404)
+
+        # Create the item
+        name = request.form.get('name', '').strip()
+        if not name:
+            flash('Item name is required.', 'danger')
+            return redirect(url_for('item_lists_detail', project_id=project_id, list_id=list_id))
+
+        cur = conn.execute(
+            '''INSERT INTO items (name, description, category, qty, unit)
+               VALUES (?,?,?,?,?)''',
+            (name,
+             request.form.get('description', '').strip() or None,
+             request.form.get('category', '').strip() or None,
+             request.form.get('qty', '') or None,
+             request.form.get('unit', '').strip() or None)
+        )
+        item_id = cur.lastrowid
+
+        # Add item to list
+        conn.execute(
+            'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?,?)',
+            (list_id, item_id)
+        )
+        flash(f'Item "{name}" added to list.', 'success')
+
+    return redirect(url_for('item_lists_detail', project_id=project_id, list_id=list_id))
 
 
 @app.route('/projects/<int:project_id>/lists/<int:list_id>/delete', methods=['POST'])

@@ -4,13 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div class="d-flex align-items-center gap-2 mb-2">
-    <a href="{{ url_for('projects_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-      <i class="bi bi-arrow-left me-1"></i>Projects
+    <a href="{{ url_for('item_lists_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
+      <i class="bi bi-arrow-left me-1"></i>Item Lists
     </a>
     <span class="text-muted">/</span>
-    <a href="{{ url_for('projects_detail', project_id=project_id) }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
-      {{ project.name }}
-    </a>
+    <span class="text-muted" style="font-size:.875rem;">{{ project.name }}</span>
   </div>
   <div class="d-flex align-items-start justify-content-between">
     <div>
@@ -49,9 +47,14 @@
     <div class="card">
       <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
         <span><i class="bi bi-box me-2 text-muted"></i>Items ({{ items|length }})</span>
-        <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=list.id) }}" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-pencil me-1"></i>Edit Items
-        </a>
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="{{ url_for('items_import') }}" class="btn btn-outline-secondary" title="Import items from Excel">
+            <i class="bi bi-upload me-1"></i>Import
+          </a>
+          <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Add item manually">
+            <i class="bi bi-plus-lg me-1"></i>Add Item
+          </button>
+        </div>
       </div>
       <div class="card-body p-0">
         {% if items %}
@@ -82,11 +85,17 @@
           </table>
         </div>
         {% else %}
-        <div class="text-center py-4 text-muted">
-          <p class="mb-2">No items in this list.</p>
-          <a href="{{ url_for('item_lists_edit', project_id=project_id, list_id=list.id) }}" class="btn btn-sm btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>Add Items
-          </a>
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>
+          <p class="mb-3">No items in this list yet.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('items_import') }}" class="btn btn-primary btn-sm">
+              <i class="bi bi-upload me-1"></i>Import Items
+            </a>
+            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
+              <i class="bi bi-plus-lg me-1"></i>Add Item
+            </button>
+          </div>
         </div>
         {% endif %}
       </div>
@@ -136,6 +145,50 @@
         </div>
         {% endif %}
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Item Manually</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('item_lists_add_item', project_id=project_id, list_id=list.id) }}">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Item Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g. Office Chair"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Description</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Item details..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Category</label>
+            <input type="text" name="category" class="form-control" placeholder="e.g. Furniture"/>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-3">
+              <label class="form-label fw-600" style="font-weight:600;">Quantity</label>
+              <input type="number" name="qty" class="form-control" step="0.01" placeholder="e.g. 10"/>
+            </div>
+            <div class="col-sm-6 mb-0">
+              <label class="form-label fw-600" style="font-weight:600;">Unit</label>
+              <input type="text" name="unit" class="form-control" placeholder="e.g. pieces"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Add Item
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
