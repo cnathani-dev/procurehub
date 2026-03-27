@@ -68,50 +68,6 @@
   </div>
 </div>
 
-<!-- ── Quick actions ──────────────────────────────────────────────────── -->
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <a href="{{ url_for('projects_list') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
-      <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;flex-shrink:0;"><i class="bi bi-kanban"></i></div>
-      <div>
-        <div class="fw-600" style="font-weight:600;">View Projects</div>
-        <div class="text-muted" style="font-size:.8rem;">Organize procurement work</div>
-      </div>
-      <i class="bi bi-chevron-right ms-auto text-muted"></i>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{{ url_for('items_import') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
-      <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;flex-shrink:0;"><i class="bi bi-upload"></i></div>
-      <div>
-        <div class="fw-600" style="font-weight:600;">Import Items</div>
-        <div class="text-muted" style="font-size:.8rem;">Upload Excel / CSV</div>
-      </div>
-      <i class="bi bi-chevron-right ms-auto text-muted"></i>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{{ url_for('suppliers_add') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
-      <div class="stat-icon" style="background:#f0fdf4;color:#22c55e;flex-shrink:0;"><i class="bi bi-person-plus"></i></div>
-      <div>
-        <div class="fw-600" style="font-weight:600;">Add Supplier</div>
-        <div class="text-muted" style="font-size:.8rem;">Register a new vendor</div>
-      </div>
-      <i class="bi bi-chevron-right ms-auto text-muted"></i>
-    </a>
-  </div>
-  <div class="col-md-4">
-    <a href="{{ url_for('quotes_create') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
-      <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;flex-shrink:0;"><i class="bi bi-plus-circle"></i></div>
-      <div>
-        <div class="fw-600" style="font-weight:600;">New Quote Request</div>
-        <div class="text-muted" style="font-size:.8rem;">Select items & suppliers</div>
-      </div>
-      <i class="bi bi-chevron-right ms-auto text-muted"></i>
-    </a>
-  </div>
-</div>
-
 <!-- ── Recent activity ────────────────────────────────────────────────── -->
 <div class="card">
   <div class="card-header d-flex align-items-center gap-2 py-3 px-4">
