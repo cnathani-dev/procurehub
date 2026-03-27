@@ -14,6 +14,7 @@
 
 <form method="POST" action="{{ url_for('item_lists_import_do', project_id=project_id, list_id=list_id) }}">
   <input type="hidden" name="tmp" value="{{ tmp }}"/>
+  <input type="hidden" name="mode" value="{{ mode }}"/>
 
   <div class="row g-4">
     <div class="col-lg-5">
@@ -90,7 +91,12 @@
         </div>
         <div class="card-footer py-2 px-4" style="font-size:.78rem;color:#6c757d;">
           <i class="bi bi-info-circle me-1"></i>
-          {{ columns|length }} columns detected. Items will be added to "{{ item_list.name }}".
+          {{ columns|length }} columns detected.
+          {% if mode == 'replace' %}
+            <span class="text-danger fw-600">Replace mode: all existing items in "{{ item_list.name }}" will be removed first.</span>
+          {% else %}
+            Items will be added to "{{ item_list.name }}".
+          {% endif %}
         </div>
       </div>
     </div>

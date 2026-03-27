@@ -359,33 +359,6 @@ def settings():
 
 
 # ── Items ─────────────────────────────────────────────────────────────────────
-@app.route('/items')
-@login_required
-def items_list():
-    with get_db() as conn:
-        items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
-
-    # Group items by category
-    from collections import defaultdict
-    grouped = defaultdict(list)
-    categories_set = set()
-
-    for item in items:
-        cat = item['category'] or 'Uncategorized'
-        grouped[cat].append(item)
-        categories_set.add(cat)
-
-    # Sort categories with Uncategorized last
-    categories = sorted(
-        [c for c in categories_set if c != 'Uncategorized'],
-        key=str.lower
-    )
-    if 'Uncategorized' in categories_set:
-        categories.append('Uncategorized')
-
-    return render_template('items/index.html', items=items, grouped_items=grouped, categories=categories)
-
-
 @app.route('/items/<int:item_id>/qty', methods=['POST'])
 @login_required
 def items_update_qty(item_id):
@@ -474,121 +447,6 @@ def format_description(text):
 
 
 # Step 1 – upload file, show mapping UI
-@app.route('/items/import', methods=['GET', 'POST'])
-@login_required
-def items_import():
-    if request.method == 'POST':
-        file = request.files.get('file')
-        if not file or file.filename == '':
-            flash('No file selected.', 'danger')
-            return redirect(request.url)
-        if not allowed_file(file.filename):
-            flash('Unsupported file type. Use .xlsx, .xls, or .csv', 'danger')
-            return redirect(request.url)
-        try:
-            raw = file.read()
-            df  = _read_df(raw, file.filename)
-            columns = list(df.columns)
-            if not columns:
-                flash('File appears to be empty.', 'danger')
-                return redirect(request.url)
-            # Save temp file
-            ts = datetime.now().strftime('%Y%m%d%H%M%S')
-            tmp_name = secure_filename(f'tmp_items_{ts}_{file.filename}')
-            with open(os.path.join(UPLOAD_FOLDER, tmp_name), 'wb') as fh:
-                fh.write(raw)
-            # Auto-guess mappings
-            saved = load_mapping('items')
-            guesses = {
-                'name':        saved.get('name')        or _guess(columns, ['name', 'item_name', 'item', 'product', 'description']),
-                'category':    saved.get('category')    or _guess(columns, ['category', 'cat', 'type', 'group']),
-                'description': saved.get('description') or _guess(columns, ['description', 'desc', 'details', 'notes']),
-                'qty':         saved.get('qty')         or _guess(columns, ['qty', 'quantity', 'amount', 'count']),
-                'unit':        saved.get('unit')        or _guess(columns, ['unit', 'uom', 'measure']),
-            }
-            mode = request.form.get('mode', 'append')
-            return render_template('items/map.html',
-                                   columns=columns, tmp=tmp_name,
-                                   guesses=guesses, mode=mode,
-                                   preview=df.head(3).to_dict('records'))
-        except Exception as e:
-            flash(f'Error reading file: {e}', 'danger')
-            return redirect(request.url)
-    return render_template('items/import.html')
-
-
-# Step 2 – apply mapping and import
-@app.route('/items/import/do', methods=['POST'])
-@login_required
-def items_import_do():
-    tmp      = request.form.get('tmp', '')
-    mode     = request.form.get('mode', 'append')
-    col_name = request.form.get('col_name', '').strip()
-    col_cat  = request.form.get('col_category', '').strip()
-    col_desc = request.form.get('col_description', '').strip()
-    col_qty  = request.form.get('col_qty', '').strip()
-    col_unit = request.form.get('col_unit', '').strip()
-
-    if not tmp or not col_name:
-        flash('Missing file or name column mapping.', 'danger')
-        return redirect(url_for('items_import'))
-
-    tmp_path = os.path.join(UPLOAD_FOLDER, secure_filename(tmp))
-    if not os.path.exists(tmp_path):
-        flash('Upload session expired. Please re-upload.', 'danger')
-        return redirect(url_for('items_import'))
-
-    try:
-        with open(tmp_path, 'rb') as fh:
-            raw = fh.read()
-        df = _read_df(raw, tmp)
-
-        def get_val(row, col):
-            if not col or col not in df.columns:
-                return None
-            v = str(row.get(col, '') or '').strip()
-            return None if v.lower() in ('', 'nan') else v
-
-        with get_db() as conn:
-            if mode == 'replace':
-                conn.execute('DELETE FROM items')
-            count = 0
-            for _, row in df.iterrows():
-                name = get_val(row, col_name)
-                if not name:
-                    continue
-                qty = None
-                if col_qty and col_qty in df.columns:
-                    try:
-                        qty_raw = row.get(col_qty)
-                        if qty_raw is not None and str(qty_raw).lower() != 'nan':
-                            qty = float(str(qty_raw).replace(',', ''))
-                    except (ValueError, TypeError):
-                        pass
-                conn.execute(
-                    'INSERT INTO items (name, category, description, qty, unit) VALUES (?,?,?,?,?)',
-                    (name, get_val(row, col_cat), get_val(row, col_desc), qty, get_val(row, col_unit))
-                )
-                count += 1
-
-        # Persist mapping for next time
-        save_mapping('items', {
-            'name': col_name, 'category': col_cat,
-            'description': col_desc, 'qty': col_qty, 'unit': col_unit,
-        })
-
-        # Clean up temp file
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-
-        flash(f'Imported {count} items successfully.', 'success')
-        return redirect(url_for('items_list'))
-    except Exception as e:
-        flash(f'Error importing: {e}', 'danger')
-        return redirect(url_for('items_import'))
-
 
 @app.route('/items/edit/<int:item_id>', methods=['GET', 'POST'])
 @login_required
@@ -941,11 +799,12 @@ def item_lists_import(project_id, list_id):
                     'qty':         saved.get('qty')         or _guess(columns, ['qty', 'quantity', 'amount', 'count']),
                     'unit':        saved.get('unit')        or _guess(columns, ['unit', 'uom', 'measure']),
                 }
+                mode = request.form.get('mode', 'append')
                 return render_template('item_lists/map.html',
                                        project=project, item_list=item_list,
                                        project_id=project_id, list_id=list_id,
                                        columns=columns, tmp=tmp_name,
-                                       guesses=guesses,
+                                       guesses=guesses, mode=mode,
                                        preview=df.head(3).to_dict('records'))
             except Exception as e:
                 flash(f'Error reading file: {e}', 'danger')
@@ -969,6 +828,7 @@ def item_lists_import_do(project_id, list_id):
             abort(404)
 
     tmp      = request.form.get('tmp', '')
+    mode     = request.form.get('mode', 'append')
     col_name = request.form.get('col_name', '').strip()
     col_cat  = request.form.get('col_category', '').strip()
     col_desc = request.form.get('col_description', '').strip()
@@ -996,6 +856,10 @@ def item_lists_import_do(project_id, list_id):
             return None if v.lower() in ('', 'nan') else v
 
         with get_db() as conn:
+            # If replace mode, delete all existing items from this list
+            if mode == 'replace':
+                conn.execute('DELETE FROM item_list_items WHERE item_list_id = ?', (list_id,))
+
             count = 0
             for _, row in df.iterrows():
                 name = get_val(row, col_name)
