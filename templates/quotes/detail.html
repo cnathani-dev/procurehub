@@ -51,8 +51,11 @@
           </thead>
           <tbody>
             {% for item in items %}
-            <tr>
-              <td class="ps-4">{{ item.name }}</td>
+            <tr style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#itemModal{{ item.id }}">
+              <td class="ps-4">
+                {{ item.name }}
+                {% if item.description %}<i class="bi bi-info-circle text-muted ms-1" style="font-size:0.8rem;opacity:0.6;"></i>{% endif %}
+              </td>
               <td>
                 {% if item.category %}
                   <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-weight:500;font-size:.72rem;">{{ item.category }}</span>
@@ -62,6 +65,39 @@
                 {{ item.qty if item.qty is not none else '—' }}{{ ' ' + item.unit if item.unit else '' }}
               </td>
             </tr>
+
+            <!-- Item Detail Modal -->
+            <div class="modal fade" id="itemModal{{ item.id }}" tabindex="-1">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">{{ item.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    {% if item.category %}
+                    <div class="mb-3">
+                      <strong>Category:</strong>
+                      <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-weight:500;">{{ item.category }}</span>
+                    </div>
+                    {% endif %}
+                    {% if item.qty is not none %}
+                    <div class="mb-3">
+                      <strong>Quantity:</strong> {{ item.qty }}{{ ' ' + item.unit if item.unit else '' }}
+                    </div>
+                    {% endif %}
+                    {% if item.description %}
+                    <div class="mt-4 pt-3 border-top">
+                      <strong class="d-block mb-3">Description:</strong>
+                      <div class="description-display">
+                        {{ item.description|format_description }}
+                      </div>
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
             {% endfor %}
           </tbody>
         </table>

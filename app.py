@@ -13,6 +13,34 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'change-this-in-prod-a8f3k2p9')
 
+
+# Register Jinja filters
+@app.template_filter('format_description')
+def filter_format_description(text):
+    """Render formatted description as HTML."""
+    from markupsafe import Markup
+    if not text or not text.strip():
+        return ''
+
+    sections = format_description(text)
+    html_parts = []
+
+    for section in sections:
+        if section['type'] == 'header':
+            html_parts.append(f'<div class="desc-header">{section["content"]}</div>')
+        elif section['type'].startswith('h'):
+            level = section['type'][1]
+            html_parts.append(f'<h{level} class="desc-heading">{section["content"]}</h{level}>')
+        elif section['type'] == 'paragraph':
+            html_parts.append(f'<p class="desc-paragraph">{section["content"]}</p>')
+        elif section['type'] == 'list':
+            items_html = ''.join(f'<li>{item}</li>' for item in section['items'])
+            html_parts.append(f'<ul class="desc-list">{items_html}</ul>')
+        elif section['type'] == 'spacing':
+            pass  # Skip spacing in rendered output
+
+    return Markup('\n'.join(html_parts))
+
 # ── Storage paths ────────────────────────────────────────────────────────────
 DATA_DIR = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(__file__), 'data'))
 DB_PATH = os.path.join(DATA_DIR, 'procurement.db')
@@ -228,6 +256,65 @@ def _guess(columns, candidates):
         if cand.lower() in cl:
             return columns[cl.index(cand.lower())]
     return ''
+
+
+# ── Description formatting ────────────────────────────────────────────────────
+def format_description(text):
+    """
+    Parse description text and return structured data for rendering.
+    Detects headers (lines ending with :, markdown #), sections, and lists.
+    Returns list of {'type': 'header'|'text'|'list'|'paragraph', 'content': str}
+    """
+    if not text or not text.strip():
+        return []
+
+    lines = text.split('\n')
+    sections = []
+    current_list = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            # Empty line
+            if current_list:
+                sections.append({'type': 'list', 'items': current_list})
+                current_list = []
+            sections.append({'type': 'spacing', 'content': ''})
+            continue
+
+        # Check for markdown headers
+        if stripped.startswith('#'):
+            if current_list:
+                sections.append({'type': 'list', 'items': current_list})
+                current_list = []
+            level = len(stripped) - len(stripped.lstrip('#'))
+            content = stripped.lstrip('#').strip()
+            sections.append({'type': f'h{level}', 'content': content})
+
+        # Check for header pattern (text ending with colon)
+        elif stripped.endswith(':') and len(stripped) > 1:
+            if current_list:
+                sections.append({'type': 'list', 'items': current_list})
+                current_list = []
+            sections.append({'type': 'header', 'content': stripped[:-1]})
+
+        # Check for bullet/list items
+        elif stripped.startswith(('- ', '* ', '• ', '· ')):
+            item = stripped[2:].strip()
+            current_list.append(item)
+
+        # Regular paragraph text
+        else:
+            if current_list:
+                sections.append({'type': 'list', 'items': current_list})
+                current_list = []
+            sections.append({'type': 'paragraph', 'content': stripped})
+
+    # Flush remaining list
+    if current_list:
+        sections.append({'type': 'list', 'items': current_list})
+
+    return sections
 
 
 # Step 1 – upload file, show mapping UI

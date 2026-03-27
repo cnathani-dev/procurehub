@@ -7,7 +7,7 @@
   <p>Update item details below.</p>
 </div>
 
-<div class="row">
+<div class="row g-4">
   <div class="col-lg-6">
     <div class="card">
       <div class="card-body p-4">
@@ -22,7 +22,11 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-600" style="font-weight:600;">Description</label>
-            <textarea name="description" class="form-control" rows="3">{{ item.description or '' }}</textarea>
+            <textarea name="description" class="form-control" rows="5" id="descInput">{{ item.description or '' }}</textarea>
+            <small class="text-muted d-block mt-2">
+              💡 Tip: Use <code>Header:</code> to create sections, or <code># Header</code> for markdown style.
+              Bullet lists with <code>- item</code> are supported.
+            </small>
           </div>
           <div class="row g-3 mb-4">
             <div class="col-6">
@@ -42,5 +46,81 @@
       </div>
     </div>
   </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-3 px-4">
+        <i class="bi bi-eye me-2"></i>Description Preview
+      </div>
+      <div class="card-body p-4 description-display" id="descPreview">
+        <p class="text-muted" style="font-size:0.9rem;">
+          <i class="bi bi-info-circle me-1"></i>Live preview of formatted description
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('descInput');
+  const preview = document.getElementById('descPreview');
+
+  function updatePreview() {
+    const text = input.value.trim();
+    if (!text) {
+      preview.innerHTML = '<p class="text-muted" style="font-size:0.9rem;"><i class="bi bi-info-circle me-1"></i>Live preview of formatted description</p>';
+      return;
+    }
+    // Basic client-side formatting for real-time preview
+    let html = '';
+    const lines = text.split('\n');
+    let inList = false;
+    let listItems = [];
+
+    lines.forEach(line => {
+      const stripped = line.trim();
+      if (!stripped) {
+        if (inList && listItems.length) {
+          html += '<ul class="desc-list">' + listItems.map(item => `<li>${item}</li>`).join('') + '</ul>';
+          listItems = [];
+          inList = false;
+        }
+        return;
+      }
+
+      if (stripped.startsWith('#')) {
+        const level = stripped.search(/[^#]/);
+        const content = stripped.substring(level).trim();
+        html += `<h${level} class="desc-heading">${content}</h${level}>`;
+      } else if (stripped.endsWith(':') && stripped.length > 1) {
+        html += `<div class="desc-header">${stripped.slice(0, -1)}</div>`;
+      } else if (stripped.match(/^[-*•·]\s/)) {
+        const item = stripped.substring(2).trim();
+        listItems.push(item);
+        inList = true;
+      } else {
+        if (inList && listItems.length) {
+          html += '<ul class="desc-list">' + listItems.map(item => `<li>${item}</li>`).join('') + '</ul>';
+          listItems = [];
+          inList = false;
+        }
+        html += `<p class="desc-paragraph">${stripped}</p>`;
+      }
+    });
+
+    if (inList && listItems.length) {
+      html += '<ul class="desc-list">' + listItems.map(item => `<li>${item}</li>`).join('') + '</ul>';
+    }
+
+    preview.innerHTML = html;
+  }
+
+  input.addEventListener('input', updatePreview);
+  updatePreview(); // Initial preview
+});
+</script>
 {% endblock %}
