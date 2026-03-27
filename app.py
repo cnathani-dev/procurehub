@@ -41,6 +41,29 @@ def filter_format_description(text):
 
     return Markup('\n'.join(html_parts))
 
+
+# ── Context Processors ────────────────────────────────────────────────────────
+@app.context_processor
+def inject_projects():
+    """Make all projects and active project available to all templates."""
+    projects = []
+    active_project_name = None
+    if 'user_id' in session:
+        with get_db() as conn:
+            projects = conn.execute(
+                'SELECT id, name FROM projects ORDER BY name'
+            ).fetchall()
+            if session.get('active_project_id'):
+                active_proj = conn.execute(
+                    'SELECT name FROM projects WHERE id = ?',
+                    (session.get('active_project_id'),)
+                ).fetchone()
+                active_project_name = active_proj['name'] if active_proj else None
+    return {
+        'all_projects': projects,
+        'active_project_name': active_project_name
+    }
+
 # ── Storage paths ────────────────────────────────────────────────────────────
 DATA_DIR = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(__file__), 'data'))
 DB_PATH = os.path.join(DATA_DIR, 'procurement.db')
@@ -215,6 +238,38 @@ def init_db():
                 (admin_username, generate_password_hash(admin_password))
             )
 
+        # Create default project "Project One" and "FirstList" itemlist
+        default_project = conn.execute(
+            'SELECT id FROM projects WHERE name = ?', ('Project One',)
+        ).fetchone()
+        if not default_project:
+            conn.execute(
+                'INSERT INTO projects (name, description, status) VALUES (?, ?, ?)',
+                ('Project One', 'Default project for organizing procurement', 'active')
+            )
+            default_project_id = conn.execute(
+                'SELECT id FROM projects WHERE name = ?', ('Project One',)
+            ).fetchone()['id']
+            # Create "FirstList" itemlist for the default project
+            conn.execute(
+                'INSERT INTO item_lists (project_id, name, description) VALUES (?, ?, ?)',
+                (default_project_id, 'FirstList', 'Default list for items')
+            )
+            # Move all items without a project into FirstList
+            first_list_id = conn.execute(
+                'SELECT id FROM item_lists WHERE project_id = ? AND name = ?',
+                (default_project_id, 'FirstList')
+            ).fetchone()['id']
+            items = conn.execute('SELECT id FROM items').fetchall()
+            for item in items:
+                try:
+                    conn.execute(
+                        'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?, ?)',
+                        (first_list_id, item['id'])
+                    )
+                except Exception:
+                    pass  # Item already in a list or duplicate
+
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 def login_required(f):
@@ -257,6 +312,15 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    # Set default active project if not already set
+    if 'active_project_id' not in session:
+        with get_db() as conn:
+            default_project = conn.execute(
+                'SELECT id FROM projects WHERE name = ?', ('Project One',)
+            ).fetchone()
+            if default_project:
+                session['active_project_id'] = default_project['id']
+
     with get_db() as conn:
         item_count     = conn.execute('SELECT COUNT(*) FROM items').fetchone()[0]
         supplier_count = conn.execute('SELECT COUNT(*) FROM suppliers').fetchone()[0]
@@ -603,6 +667,7 @@ def projects_detail(project_id):
             GROUP BY il.id
             ORDER BY il.created_at DESC
         ''', (project_id,)).fetchall()
+    session['active_project_id'] = project_id
     return render_template('projects/detail.html', project=project, lists=lists)
 
 
@@ -709,9 +774,11 @@ def item_lists_detail(project_id, list_id):
             GROUP BY qr.id
             ORDER BY qr.created_at DESC
         ''', (list_id,)).fetchall()
+    session['active_project_id'] = project_id
     return render_template('projects/item_list_detail.html',
                            project=project, item_list=item_list,
-                           items=items, quote_requests=quote_requests)
+                           items=items, quote_requests=quote_requests,
+                           project_id=project_id, list_id=list_id)
 
 
 @app.route('/projects/<int:project_id>/lists/<int:list_id>/edit', methods=['GET', 'POST'])

@@ -214,6 +214,30 @@
 
 <!-- ── Main ───────────────────────────────────────────────────────────── -->
 <div class="main-content">
+  <!-- Project Selector -->
+  {% if session.get('active_project_id') and all_projects %}
+  <div class="d-flex justify-content-end align-items-center mb-3" style="padding-bottom: 1rem; border-bottom: 1px solid #e9ecef;">
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted" style="font-size:.8rem;">Active Project:</span>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="projectDropdown" data-bs-toggle="dropdown">
+          {{ active_project_name or 'Select Project' }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="projectDropdown">
+          {% for proj in all_projects %}
+          <li>
+            <a class="dropdown-item {% if proj.id == session.active_project_id %}active{% endif %}"
+               href="{{ url_for('projects_detail', project_id=proj.id) }}">
+              {{ proj.name }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for cat, msg in messages %}
