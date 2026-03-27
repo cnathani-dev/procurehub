@@ -31,7 +31,7 @@
 
           <div class="mb-3">
             <label class="form-label fw-600" style="font-weight:600;">Supplier Description</label>
-            <textarea name="supplier_description" class="form-control" rows="3" id="supplierDescInput">{{ item.supplier_description or '' }}</textarea>
+            <textarea name="supplier_description" class="form-control" rows="3" id="supplierDescInput">{% if item.supplier_description %}{{ item.supplier_description }}{% endif %}</textarea>
             <small class="text-muted d-block mt-2">
               This is sent to suppliers in quote requests. Auto-generate from internal description below.
             </small>
