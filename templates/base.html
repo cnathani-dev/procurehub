@@ -209,9 +209,9 @@
 <!-- ── Main ───────────────────────────────────────────────────────────── -->
 <div class="main-content">
   <!-- Project Selector & Settings -->
-  {% if all_projects %}
   <div class="d-flex justify-content-end align-items-center mb-3" style="padding-bottom: 1rem; border-bottom: 1px solid #e9ecef;">
     <div class="d-flex align-items-center gap-2">
+      {% if all_projects %}
       <span class="text-muted" style="font-size:.8rem;">Active Project:</span>
       <div class="dropdown">
         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="projectDropdown" data-bs-toggle="dropdown">
@@ -228,12 +228,14 @@
           {% endfor %}
         </ul>
       </div>
+      {% else %}
+      <span class="text-muted" style="font-size:.8rem;">No projects yet. Create one in Settings:</span>
+      {% endif %}
       <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary" title="Settings">
         <i class="bi bi-gear"></i>
       </a>
     </div>
   </div>
-  {% endif %}
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
