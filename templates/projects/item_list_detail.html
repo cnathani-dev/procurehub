@@ -250,103 +250,107 @@
 {% block scripts %}
 <script>
 // Get table and filter elements
-const searchInput = document.getElementById('searchInput');
-const categoryFilter = document.getElementById('categoryFilter');
-const sortSelect = document.getElementById('sortSelect');
 const itemTable = document.getElementById('itemsTable');
-const itemRows = Array.from(itemTable.querySelectorAll('.item-row'));
 
-// Filter and sort function
-function updateDisplay() {
-  const searchTerm = searchInput.value.toLowerCase();
-  const selectedCategory = categoryFilter.value;
-  const sortMode = sortSelect.value;
+// Only set up event listeners if items table exists
+if (itemTable) {
+  const itemRows = Array.from(itemTable.querySelectorAll('.item-row'));
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const sortSelect = document.getElementById('sortSelect');
 
-  // Filter rows
-  itemRows.forEach(row => {
-    const matchesSearch = row.dataset.search.includes(searchTerm);
-    const matchesCategory = !selectedCategory || row.dataset.category === selectedCategory;
-    const show = matchesSearch && matchesCategory;
-    row.style.display = show ? '' : 'none';
-  });
+  // Filter and sort function
+  function updateDisplay() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const selectedCategory = categoryFilter.value;
+    const sortMode = sortSelect.value;
 
-  // Show/hide category headers
-  const categoryHeaders = itemTable.querySelectorAll('.category-header-row');
-  categoryHeaders.forEach(header => {
-    const cat = header.dataset.category;
-    const hasVisibleItems = itemRows.some(row => row.dataset.category === cat && row.style.display !== 'none');
-    header.style.display = hasVisibleItems ? '' : 'none';
-  });
-
-  // Sort rows (if not grouping by category)
-  if (sortMode !== 'category_name') {
-    itemRows.sort((a, b) => {
-      const aName = a.dataset.search.split(' ')[0];
-      const bName = b.dataset.search.split(' ')[0];
-      const aQty = parseFloat(a.dataset.qty) || 0;
-      const bQty = parseFloat(b.dataset.qty) || 0;
-
-      if (sortMode === 'name') return aName.localeCompare(bName);
-      if (sortMode === 'qty_up') return aQty - bQty;
-      if (sortMode === 'qty_down') return bQty - aQty;
-      return 0;
-    });
-
-    // Re-insert sorted rows
-    const tbody = itemTable.querySelector('tbody');
+    // Filter rows
     itemRows.forEach(row => {
-      if (row.style.display !== 'none') {
-        tbody.appendChild(row);
-      }
+      const matchesSearch = row.dataset.search.includes(searchTerm);
+      const matchesCategory = !selectedCategory || row.dataset.category === selectedCategory;
+      const show = matchesSearch && matchesCategory;
+      row.style.display = show ? '' : 'none';
     });
+
+    // Show/hide category headers
+    const categoryHeaders = itemTable.querySelectorAll('.category-header-row');
+    categoryHeaders.forEach(header => {
+      const cat = header.dataset.category;
+      const hasVisibleItems = itemRows.some(row => row.dataset.category === cat && row.style.display !== 'none');
+      header.style.display = hasVisibleItems ? '' : 'none';
+    });
+
+    // Sort rows (if not grouping by category)
+    if (sortMode !== 'category_name') {
+      itemRows.sort((a, b) => {
+        const aName = a.dataset.search.split(' ')[0];
+        const bName = b.dataset.search.split(' ')[0];
+        const aQty = parseFloat(a.dataset.qty) || 0;
+        const bQty = parseFloat(b.dataset.qty) || 0;
+
+        if (sortMode === 'name') return aName.localeCompare(bName);
+        if (sortMode === 'qty_up') return aQty - bQty;
+        if (sortMode === 'qty_down') return bQty - aQty;
+        return 0;
+      });
+
+      // Re-insert sorted rows
+      const tbody = itemTable.querySelector('tbody');
+      itemRows.forEach(row => {
+        if (row.style.display !== 'none') {
+          tbody.appendChild(row);
+        }
+      });
+    }
   }
+
+  // Event listeners
+  searchInput.addEventListener('input', updateDisplay);
+  categoryFilter.addEventListener('change', updateDisplay);
+  sortSelect.addEventListener('change', updateDisplay);
+
+  // Inline qty edit
+  document.querySelectorAll('.qty-input').forEach(input => {
+    input.addEventListener('blur', function() {
+      const itemId = this.dataset.itemId;
+      const qty = this.value.trim();
+      if (!qty) return; // Don't save empty values
+
+      fetch(`{{ url_for('items_update_qty', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `qty=${encodeURIComponent(qty)}`
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) alert('Error updating quantity: ' + data.error);
+      })
+      .catch(e => alert('Error: ' + e));
+    });
+  });
+
+  // Inline category edit
+  document.querySelectorAll('.category-select').forEach(select => {
+    select.addEventListener('change', function() {
+      const itemId = this.dataset.itemId;
+      const category = this.value || '';
+
+      fetch(`{{ url_for('items_update_category', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `category=${encodeURIComponent(category)}`
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) {
+          alert('Error updating category: ' + data.error);
+          this.value = '';
+        }
+      })
+      .catch(e => alert('Error: ' + e));
+    });
+  });
 }
-
-// Event listeners
-searchInput.addEventListener('input', updateDisplay);
-categoryFilter.addEventListener('change', updateDisplay);
-sortSelect.addEventListener('change', updateDisplay);
-
-// Inline qty edit
-document.querySelectorAll('.qty-input').forEach(input => {
-  input.addEventListener('blur', function() {
-    const itemId = this.dataset.itemId;
-    const qty = this.value.trim();
-    if (!qty) return; // Don't save empty values
-
-    fetch(`{{ url_for('items_update_qty', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `qty=${encodeURIComponent(qty)}`
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.success) alert('Error updating quantity: ' + data.error);
-    })
-    .catch(e => alert('Error: ' + e));
-  });
-});
-
-// Inline category edit
-document.querySelectorAll('.category-select').forEach(select => {
-  select.addEventListener('change', function() {
-    const itemId = this.dataset.itemId;
-    const category = this.value || '';
-
-    fetch(`{{ url_for('items_update_category', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `category=${encodeURIComponent(category)}`
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.success) {
-        alert('Error updating category: ' + data.error);
-        this.value = '';
-      }
-    })
-    .catch(e => alert('Error: ' + e));
-  });
-});
 </script>
 {% endblock %}
