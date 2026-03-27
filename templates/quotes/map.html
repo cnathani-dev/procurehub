@@ -1,0 +1,135 @@
+﻿{% extends "base.html" %}
+{% block title %}Map Quote Columns – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="d-flex align-items-center gap-2 mb-1">
+    <a href="{{ url_for('quotes_upload', qr_id=qr.id, supplier_id=supplier.id) }}"
+       class="text-muted text-decoration-none" style="font-size:.875rem;">
+      <i class="bi bi-arrow-left me-1"></i>Back to Upload
+    </a>
+  </div>
+  <h1>Map Quote Columns – {{ supplier.name }}</h1>
+  <p>Match your file's columns to item name and price, then save the quote.</p>
+</div>
+
+<form method="POST" action="{{ url_for('quotes_upload_do', qr_id=qr.id, supplier_id=supplier.id) }}">
+  <input type="hidden" name="tmp"   value="{{ tmp }}"/>
+  <input type="hidden" name="notes" value="{{ notes }}"/>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card mb-4">
+        <div class="card-header py-3 px-4">
+          <i class="bi bi-arrow-left-right me-2 text-muted"></i>Column Mapping
+        </div>
+        <div class="card-body p-4">
+
+          <div class="mb-3">
+            <label class="form-label" style="font-weight:600;font-size:.875rem;">
+              Item Name <span class="text-danger">*</span>
+            </label>
+            <select name="col_item_name" class="form-select form-select-sm" required>
+              <option value="">— select column —</option>
+              {% for col in columns %}
+              <option value="{{ col }}" {% if guesses.item_name == col %}selected{% endif %}>{{ col }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Column that contains the item/product name</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" style="font-weight:600;font-size:.875rem;">
+              Price <span class="text-danger">*</span>
+            </label>
+            <select name="col_price" class="form-select form-select-sm" required>
+              <option value="">— select column —</option>
+              {% for col in columns %}
+              <option value="{{ col }}" {% if guesses.price == col %}selected{% endif %}>{{ col }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Column with the quoted unit price</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" style="font-weight:600;font-size:.875rem;">Notes (optional)</label>
+            <select name="col_notes" class="form-select form-select-sm">
+              <option value="">— skip —</option>
+              {% for col in columns %}
+              <option value="{{ col }}" {% if guesses.notes == col %}selected{% endif %}>{{ col }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Optional remarks column</div>
+          </div>
+
+          <div class="alert alert-info py-2 mb-4" style="font-size:.8rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            Item names are matched <strong>case-insensitively</strong> against your items list.
+            Unmatched rows are skipped.
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-cloud-upload me-1"></i>Save Quote
+            </button>
+            <a href="{{ url_for('quotes_upload', qr_id=qr.id, supplier_id=supplier.id) }}"
+               class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header py-3 px-4" style="font-size:.875rem;">
+          <i class="bi bi-box me-2 text-muted"></i>Items in Request
+        </div>
+        <div class="card-body p-0" style="max-height:240px;overflow-y:auto;">
+          <table class="table table-sm mb-0" style="font-size:.8rem;">
+            <tbody>
+              {% for item in items %}
+              <tr>
+                <td class="ps-3">{{ item.name }}</td>
+                <td class="text-muted pe-3">{{ item.category or '' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header py-3 px-4">
+          <i class="bi bi-eye me-2 text-muted"></i>File Preview
+          <span class="text-muted ms-2" style="font-size:.8rem;">First 3 rows</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0" style="font-size:.8rem;">
+              <thead class="table-light">
+                <tr>
+                  {% for col in columns %}
+                  <th class="px-3">{{ col }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview %}
+                <tr>
+                  {% for col in columns %}
+                  <td class="px-3 text-muted">{{ row[col] if row[col] is not none else '—' }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer py-2 px-4" style="font-size:.78rem;color:#6c757d;">
+          <i class="bi bi-info-circle me-1"></i>{{ columns|length }} columns detected in file.
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
