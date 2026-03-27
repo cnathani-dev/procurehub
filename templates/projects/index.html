@@ -130,7 +130,8 @@ function resetProjectModal() {
 }
 
 function editProjectModal(id, name, description, status) {
-  document.getElementById('projectForm').action = '{{ url_for("projects_edit", project_id="ID") }}'.replace('ID', id);
+  const baseUrl = '{{ url_for("projects_edit", project_id=0) }}'.replace('/0', '/' + id);
+  document.getElementById('projectForm').action = baseUrl;
   document.getElementById('projectName').value = name;
   document.getElementById('projectDescription').value = description;
   document.getElementById('projectStatus').value = status;
