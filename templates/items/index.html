@@ -44,100 +44,97 @@
   </div>
 </div>
 
-<!-- Items grouped by category -->
+<!-- Items Table -->
 {% if items %}
-<div id="itemsContainer">
-  {% for cat in categories %}
-  {% set cat_items = grouped_items[cat] %}
-  <div class="card mb-3 category-group" data-category="{{ cat }}">
-    <div class="card-header p-3 d-flex align-items-center gap-2" style="cursor:pointer;"
-         onclick="this.parentElement.querySelector('.category-items').classList.toggle('d-none'); this.querySelector('.category-toggle').style.transform = this.parentElement.querySelector('.category-items').classList.contains('d-none') ? 'rotate(-90deg)' : 'rotate(0deg)'">
-      <i class="bi bi-chevron-down category-toggle" style="transition: transform 0.2s;"></i>
-      <span class="fw-600" style="font-weight:600;">{{ cat }}</span>
-      <span class="badge bg-secondary ms-auto">{{ cat_items|length }}</span>
-    </div>
-    <div class="card-body category-items p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead>
-            <tr style="font-size:.85rem;">
-              <th class="ps-4">#</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th style="width:100px;">Qty</th>
-              <th>Unit</th>
-              <th class="pe-4 text-end">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in cat_items %}
-            <tr class="item-row" data-item-id="{{ item.id }}" data-item-name="{{ item.name.lower() }}"
-                data-item-desc="{{ (item.description or '').lower() }}" data-category="{{ cat }}"
-                data-qty="{{ item.qty or 0 }}">
-              <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
-              <td><strong>{{ item.name }}</strong></td>
-              <td class="text-muted">
-                {% if item.description %}
-                  <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none"
-                          data-bs-toggle="modal"
-                          data-bs-target="#descModal{{ item.id }}"
-                          style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:left;">
-                    {{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}
-                  </button>
-                  <!-- Description Modal -->
-                  <div class="modal fade" id="descModal{{ item.id }}" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
-                      <div class="modal-content">
-                        <div class="modal-header">
-                          <h5 class="modal-title">{{ item.name }} – Details</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body description-display">
-                          {{ item.description|format_description }}
-                        </div>
-                        <div class="modal-footer">
-                          <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-primary">
-                            <i class="bi bi-pencil me-1"></i>Edit Item
-                          </a>
-                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="itemsTable">
+        <thead>
+          <tr style="font-size:.85rem;">
+            <th class="ps-4">#</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th style="width:100px;">Qty</th>
+            <th>Unit</th>
+            <th class="pe-4 text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr class="item-row" data-item-id="{{ item.id }}" data-item-name="{{ (item.name or '')|lower }}"
+              data-item-desc="{{ (item.description or '')|lower }}" data-category="{{ item.category or 'Uncategorized' }}"
+              data-qty="{{ item.qty or 0 }}">
+            <td class="ps-4 text-muted" style="font-size:.8rem;">{{ item.id }}</td>
+            <td><strong>{{ item.name }}</strong></td>
+            <td>
+              {% if item.category %}
+                <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-weight:500;">{{ item.category }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-muted">
+              {% if item.description %}
+                <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none"
+                        data-bs-toggle="modal"
+                        data-bs-target="#descModal{{ item.id }}"
+                        style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;text-align:left;">
+                  {{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}
+                </button>
+                <!-- Description Modal -->
+                <div class="modal fade" id="descModal{{ item.id }}" tabindex="-1">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">{{ item.name }} – Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body description-display">
+                        {{ item.description|format_description }}
+                      </div>
+                      <div class="modal-footer">
+                        <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-primary">
+                          <i class="bi bi-pencil me-1"></i>Edit Item
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                       </div>
                     </div>
                   </div>
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-              <td>
-                <input type="number" class="form-control form-control-sm qty-input"
-                       value="{{ item.qty if item.qty is not none else '' }}"
-                       placeholder="—"
-                       data-item-id="{{ item.id }}"
-                       step="0.01"
-                       style="width:100px;"/>
-              </td>
-              <td class="text-muted">{{ item.unit or '—' }}</td>
-              <td class="pe-4 text-end">
-                <a href="{{ url_for('items_edit', item_id=item.id) }}"
-                   class="btn btn-sm btn-outline-secondary me-1">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
-                      class="d-inline"
-                      onsubmit="return confirm('Delete {{ item.name }}?')">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <input type="number" class="form-control form-control-sm qty-input"
+                     value="{{ item.qty if item.qty is not none else '' }}"
+                     placeholder="—"
+                     data-item-id="{{ item.id }}"
+                     step="0.01"
+                     style="width:100px;"/>
+            </td>
+            <td class="text-muted">{{ item.unit or '—' }}</td>
+            <td class="pe-4 text-end">
+              <a href="{{ url_for('items_edit', item_id=item.id) }}"
+                 class="btn btn-sm btn-outline-secondary me-1">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('items_delete', item_id=item.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('Delete {{ item.name }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
-  {% endfor %}
 </div>
 
 {% else %}
@@ -160,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const categoryFilter = document.getElementById('categoryFilter');
   const sortBy = document.getElementById('sortBy');
   const itemRows = document.querySelectorAll('.item-row');
-  const categoryGroups = document.querySelectorAll('.category-group');
   const qtyInputs = document.querySelectorAll('.qty-input');
 
   // Inline quantity update
@@ -169,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const itemId = input.dataset.itemId;
       const qty = input.value.trim();
       if (qty !== '' || input.value !== input.placeholder) {
-        fetch(`{{ url_for('items_update_qty', item_id='ID') }}`.replace('ID', itemId), {
+        fetch(`/items/${itemId}/qty`, {
           method: 'POST',
           body: new FormData((() => {
             const form = new FormData();
@@ -211,18 +207,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       row.style.display = matchesSearch && matchesCategory ? '' : 'none';
     });
-
-    categoryGroups.forEach(group => {
-      const visibleItems = group.querySelectorAll('.item-row:not([style*="display: none"])');
-      group.style.display = visibleItems.length > 0 ? '' : 'none';
-    });
   }
 
   function sortItems() {
     const sortValue = sortBy.value;
-    const allRows = Array.from(document.querySelectorAll('.item-row'));
+    const rows = Array.from(document.querySelectorAll('.item-row'));
 
-    allRows.sort((a, b) => {
+    rows.sort((a, b) => {
       let aVal, bVal;
       if (sortValue === 'name-asc') {
         aVal = a.dataset.itemName;
@@ -247,12 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    allRows.forEach(row => {
-      const group = document.querySelector(`[data-category="${row.dataset.category}"]`);
-      if (group) {
-        const tbody = group.querySelector('tbody');
-        tbody.appendChild(row);
-      }
+    rows.forEach(row => {
+      document.querySelector('tbody').appendChild(row);
     });
   }
 
