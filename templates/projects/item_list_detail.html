@@ -317,7 +317,7 @@ if (itemTable) {
       const qty = this.value.trim();
       if (!qty) return; // Don't save empty values
 
-      fetch(`{{ url_for('items_update_qty', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
+      fetch(`/items/${itemId}/qty`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `qty=${encodeURIComponent(qty)}`
@@ -336,7 +336,7 @@ if (itemTable) {
       const itemId = this.dataset.itemId;
       const category = this.value || '';
 
-      fetch(`{{ url_for('items_update_category', item_id='ITEM_ID') }}`.replace('ITEM_ID', itemId), {
+      fetch(`/items/${itemId}/category`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `category=${encodeURIComponent(category)}`
