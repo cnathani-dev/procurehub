@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import wraps
 
 import pandas as pd
-from flask import (Flask, abort, flash, redirect, render_template, request,
+from flask import (Flask, abort, flash, jsonify, redirect, render_template, request,
                    send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -470,15 +470,14 @@ def items_edit(item_id):
 @login_required
 def generate_supplier_desc(item_id):
     """Generate supplier description from internal description using Claude AI."""
-    import json as _json
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
-        return _json.jsonify({'error': 'ANTHROPIC_API_KEY not configured'}), 400
+        return jsonify({'error': 'ANTHROPIC_API_KEY not configured'}), 400
 
     with get_db() as conn:
         item = conn.execute('SELECT description FROM items WHERE id = ?', (item_id,)).fetchone()
         if not item or not item['description']:
-            return _json.jsonify({'error': 'No internal description found'}), 400
+            return jsonify({'error': 'No internal description found'}), 400
 
     try:
         from anthropic import Anthropic
@@ -499,9 +498,9 @@ Supplier-facing description:"""
             ]
         )
         supplier_desc = message.content[0].text.strip()
-        return _json.jsonify({'supplier_description': supplier_desc})
+        return jsonify({'supplier_description': supplier_desc})
     except Exception as e:
-        return _json.jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/items/delete/<int:item_id>', methods=['POST'])
