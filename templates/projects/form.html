@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Project – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ action }} Project</h1>
+  <p>{% if project %}Update project details below.{% else %}Create a new procurement project.{% endif %}</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" value="{{ project.name if project else '' }}" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-weight:600;">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ project.description if project else '' }}</textarea>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-600" style="font-weight:600;">Status</label>
+            <select name="status" class="form-select">
+              <option value="active" {% if not project or project.status == 'active' %}selected{% endif %}>Active</option>
+              <option value="archived" {% if project and project.status == 'archived' %}selected{% endif %}>Archived</option>
+            </select>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">Save Project</button>
+            <a href="{{ url_for('projects_list') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -11,7 +11,18 @@
 
 <!-- ── Stat cards ─────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
-  <div class="col-sm-6 col-xl-3">
+  <div class="col-sm-6 col-xl-auto">
+    <div class="card stat-card p-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;"><i class="bi bi-kanban"></i></div>
+        <div>
+          <div class="text-muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Projects</div>
+          <div class="fw-700" style="font-size:1.75rem;font-weight:700;line-height:1.1;">{{ project_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-auto">
     <div class="card stat-card p-3">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;"><i class="bi bi-box"></i></div>
@@ -22,7 +33,7 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-xl-3">
+  <div class="col-sm-6 col-xl-auto">
     <div class="card stat-card p-3">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon" style="background:#f0fdf4;color:#22c55e;"><i class="bi bi-people"></i></div>
@@ -33,7 +44,7 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-xl-3">
+  <div class="col-sm-6 col-xl-auto">
     <div class="card stat-card p-3">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;"><i class="bi bi-file-earmark-text"></i></div>
@@ -44,7 +55,7 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-xl-3">
+  <div class="col-sm-6 col-xl-auto">
     <div class="card stat-card p-3">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon" style="background:#fce7f3;color:#ec4899;"><i class="bi bi-hourglass-split"></i></div>
@@ -59,6 +70,16 @@
 
 <!-- ── Quick actions ──────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{{ url_for('projects_list') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
+      <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;flex-shrink:0;"><i class="bi bi-kanban"></i></div>
+      <div>
+        <div class="fw-600" style="font-weight:600;">View Projects</div>
+        <div class="text-muted" style="font-size:.8rem;">Organize procurement work</div>
+      </div>
+      <i class="bi bi-chevron-right ms-auto text-muted"></i>
+    </a>
+  </div>
   <div class="col-md-4">
     <a href="{{ url_for('items_import') }}" class="card p-3 text-decoration-none d-flex flex-row align-items-center gap-3" style="color:inherit;">
       <div class="stat-icon" style="background:#eff6ff;color:#4f8ef7;flex-shrink:0;"><i class="bi bi-upload"></i></div>

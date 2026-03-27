@@ -182,6 +182,12 @@
       <i class="bi bi-people"></i>Suppliers
     </a>
 
+    <div class="nav-section-label">Management</div>
+    <a href="{{ url_for('projects_list') }}"
+       class="nav-link {% if request.endpoint and ('projects' in request.endpoint or 'item_lists' in request.endpoint) %}active{% endif %}">
+      <i class="bi bi-kanban"></i>Projects
+    </a>
+
     <div class="nav-section-label">Procurement</div>
     <a href="{{ url_for('quotes_list') }}"
        class="nav-link {% if request.endpoint and 'quotes' in request.endpoint %}active{% endif %}">

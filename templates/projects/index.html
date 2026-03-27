@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Projects – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Projects</h1>
+    <p>{{ projects|length }} project{{ 's' if projects|length != 1 }}</p>
+  </div>
+  <a href="{{ url_for('projects_create') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>New Project
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if projects %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Name</th>
+            <th>Status</th>
+            <th>Item Lists</th>
+            <th>Quote Requests</th>
+            <th>Created</th>
+            <th class="pe-4 text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in projects %}
+          <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('projects_detail', project_id=p.id) }}'">
+            <td class="ps-4"><strong>{{ p.name }}</strong></td>
+            <td>
+              <span class="badge {% if p.status == 'active' %}badge-open{% else %}badge-closed{% endif %}" style="font-size:.75rem;">
+                {{ p.status|capitalize }}
+              </span>
+            </td>
+            <td>{{ p.list_count }}</td>
+            <td>{{ p.qr_count }}</td>
+            <td class="text-muted">{{ p.created_at[:10] }}</td>
+            <td class="pe-4 text-end d-flex gap-1 justify-content-end" onclick="event.stopPropagation();">
+              <a href="{{ url_for('projects_edit', project_id=p.id) }}"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('projects_delete', project_id=p.id) }}"
+                    class="d-inline" onsubmit="return confirm('Delete {{ p.name }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-kanban" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+      <p class="mb-1">No projects yet.</p>
+      <a href="{{ url_for('projects_create') }}" class="btn btn-primary mt-2">
+        <i class="bi bi-plus-lg me-1"></i>Create First Project
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

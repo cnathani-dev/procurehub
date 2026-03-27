@@ -20,6 +20,7 @@
         <thead>
           <tr>
             <th class="ps-4">Title</th>
+            <th>Project</th>
             <th>Status</th>
             <th>Items</th>
             <th>Suppliers</th>
@@ -32,6 +33,14 @@
           {% for r in requests %}
           <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('quotes_detail', qr_id=r.id) }}'" class="quote-row">
             <td class="ps-4"><strong>{{ r.title }}</strong></td>
+            <td style="font-size:.85rem;">
+              {% if r.project_name %}
+                <a href="{{ url_for('projects_detail', project_id=r.project_id) }}"
+                   class="text-decoration-none text-muted" onclick="event.stopPropagation();">
+                  {{ r.project_name }}{% if r.list_name %} <span class="text-muted">/</span> {{ r.list_name }}{% endif %}
+                </a>
+              {% else %}—{% endif %}
+            </td>
             <td>
               <span class="badge badge-{{ r.status }}" style="font-size:.75rem;">
                 {{ r.status|capitalize }}

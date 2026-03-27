@@ -165,11 +165,43 @@ def init_db():
                 mapping_type TEXT PRIMARY KEY,
                 mapping_json TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS projects (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT NOT NULL,
+                description TEXT,
+                status      TEXT DEFAULT 'active',
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS item_lists (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id  INTEGER NOT NULL,
+                name        TEXT NOT NULL,
+                description TEXT,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS item_list_items (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_list_id INTEGER NOT NULL,
+                item_id      INTEGER NOT NULL,
+                FOREIGN KEY (item_list_id) REFERENCES item_lists(id) ON DELETE CASCADE,
+                FOREIGN KEY (item_id)      REFERENCES items(id)      ON DELETE CASCADE,
+                UNIQUE(item_list_id, item_id)
+            );
         ''')
 
         # Migrate: add supplier_description column if it doesn't exist (for existing DBs)
         try:
             conn.execute('ALTER TABLE items ADD COLUMN supplier_description TEXT')
+        except Exception:
+            pass  # Column already exists
+
+        # Migrate: add item_list_id column to quote_requests (for existing DBs)
+        try:
+            conn.execute('ALTER TABLE quote_requests ADD COLUMN item_list_id INTEGER REFERENCES item_lists(id)')
         except Exception:
             pass  # Column already exists
 
@@ -230,6 +262,7 @@ def dashboard():
         supplier_count = conn.execute('SELECT COUNT(*) FROM suppliers').fetchone()[0]
         qr_count       = conn.execute('SELECT COUNT(*) FROM quote_requests').fetchone()[0]
         open_count     = conn.execute("SELECT COUNT(*) FROM quote_requests WHERE status='open'").fetchone()[0]
+        project_count  = conn.execute('SELECT COUNT(*) FROM projects').fetchone()[0]
         recent = conn.execute('''
             SELECT sq.uploaded_at, s.name AS supplier_name, qr.title, qr.id AS qr_id
             FROM   supplier_quotes sq
@@ -239,7 +272,8 @@ def dashboard():
         ''').fetchall()
     return render_template('dashboard.html',
                            item_count=item_count, supplier_count=supplier_count,
-                           qr_count=qr_count, open_count=open_count, recent=recent)
+                           qr_count=qr_count, open_count=open_count,
+                           project_count=project_count, recent=recent)
 
 
 # ── Items ─────────────────────────────────────────────────────────────────────
@@ -512,6 +546,300 @@ def items_delete(item_id):
     return redirect(url_for('items_list'))
 
 
+# ── Projects ───────────────────────────────────────────────────────────────────
+@app.route('/projects')
+@login_required
+def projects_list():
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT p.*,
+                   COUNT(DISTINCT il.id)  AS list_count,
+                   COUNT(DISTINCT qr.id)  AS qr_count
+            FROM   projects p
+            LEFT JOIN item_lists      il ON il.project_id   = p.id
+            LEFT JOIN quote_requests  qr ON qr.item_list_id IN (
+                          SELECT id FROM item_lists WHERE project_id = p.id)
+            GROUP BY p.id
+            ORDER BY p.created_at DESC
+        ''').fetchall()
+    return render_template('projects/index.html', projects=rows)
+
+
+@app.route('/projects/create', methods=['GET', 'POST'])
+@login_required
+def projects_create():
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            flash('Project name is required.', 'danger')
+            return redirect(request.url)
+        with get_db() as conn:
+            conn.execute(
+                'INSERT INTO projects (name, description, status) VALUES (?,?,?)',
+                (name,
+                 request.form.get('description', '').strip() or None,
+                 request.form.get('status', 'active'))
+            )
+        flash('Project created.', 'success')
+        return redirect(url_for('projects_list'))
+    return render_template('projects/form.html', project=None, action='Create')
+
+
+@app.route('/projects/<int:project_id>')
+@login_required
+def projects_detail(project_id):
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        if not project:
+            abort(404)
+        lists = conn.execute('''
+            SELECT il.*,
+                   COUNT(DISTINCT ili.item_id)  AS item_count,
+                   COUNT(DISTINCT qr.id)         AS qr_count
+            FROM   item_lists il
+            LEFT JOIN item_list_items  ili ON ili.item_list_id = il.id
+            LEFT JOIN quote_requests   qr  ON qr.item_list_id  = il.id
+            WHERE  il.project_id = ?
+            GROUP BY il.id
+            ORDER BY il.created_at DESC
+        ''', (project_id,)).fetchall()
+    return render_template('projects/detail.html', project=project, lists=lists)
+
+
+@app.route('/projects/<int:project_id>/edit', methods=['GET', 'POST'])
+@login_required
+def projects_edit(project_id):
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        if not project:
+            abort(404)
+        if request.method == 'POST':
+            name = request.form.get('name', '').strip()
+            if not name:
+                flash('Project name is required.', 'danger')
+                return redirect(request.url)
+            conn.execute(
+                'UPDATE projects SET name=?, description=?, status=? WHERE id=?',
+                (name,
+                 request.form.get('description', '').strip() or None,
+                 request.form.get('status', 'active'),
+                 project_id)
+            )
+            flash('Project updated.', 'success')
+            return redirect(url_for('projects_detail', project_id=project_id))
+    return render_template('projects/form.html', project=project, action='Edit')
+
+
+@app.route('/projects/<int:project_id>/delete', methods=['POST'])
+@login_required
+def projects_delete(project_id):
+    with get_db() as conn:
+        conn.execute('DELETE FROM projects WHERE id = ?', (project_id,))
+    flash('Project deleted.', 'success')
+    return redirect(url_for('projects_list'))
+
+
+# ── Item Lists ─────────────────────────────────────────────────────────────────
+@app.route('/projects/<int:project_id>/lists/create', methods=['GET', 'POST'])
+@login_required
+def item_lists_create(project_id):
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        if not project:
+            abort(404)
+        items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
+
+        if request.method == 'POST':
+            name = request.form.get('name', '').strip()
+            if not name:
+                flash('List name is required.', 'danger')
+                return render_template('projects/item_list_form.html',
+                                       project=project, item_list=None,
+                                       items=items, selected_ids=set(),
+                                       action='Create')
+            item_ids = request.form.getlist('item_ids')
+
+            cur = conn.execute(
+                'INSERT INTO item_lists (project_id, name, description) VALUES (?,?,?)',
+                (project_id,
+                 name,
+                 request.form.get('description', '').strip() or None)
+            )
+            list_id = cur.lastrowid
+            for iid in item_ids:
+                conn.execute(
+                    'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?,?)',
+                    (list_id, int(iid))
+                )
+            flash('Item list created.', 'success')
+            return redirect(url_for('item_lists_detail',
+                                    project_id=project_id, list_id=list_id))
+
+    return render_template('projects/item_list_form.html',
+                           project=project, item_list=None,
+                           items=items, selected_ids=set(),
+                           action='Create')
+
+
+@app.route('/projects/<int:project_id>/lists/<int:list_id>')
+@login_required
+def item_lists_detail(project_id, list_id):
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        item_list = conn.execute(
+            'SELECT * FROM item_lists WHERE id = ? AND project_id = ?',
+            (list_id, project_id)
+        ).fetchone()
+        if not project or not item_list:
+            abort(404)
+        items = conn.execute('''
+            SELECT i.* FROM items i
+            JOIN item_list_items ili ON ili.item_id = i.id
+            WHERE ili.item_list_id = ?
+            ORDER BY i.category, i.name
+        ''', (list_id,)).fetchall()
+        quote_requests = conn.execute('''
+            SELECT qr.*,
+                   COUNT(DISTINCT qri.item_id)     AS item_count,
+                   COUNT(DISTINCT qrs.supplier_id) AS supplier_count
+            FROM   quote_requests qr
+            LEFT JOIN quote_request_items     qri ON qri.quote_request_id = qr.id
+            LEFT JOIN quote_request_suppliers qrs ON qrs.quote_request_id = qr.id
+            WHERE  qr.item_list_id = ?
+            GROUP BY qr.id
+            ORDER BY qr.created_at DESC
+        ''', (list_id,)).fetchall()
+    return render_template('projects/item_list_detail.html',
+                           project=project, item_list=item_list,
+                           items=items, quote_requests=quote_requests)
+
+
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/edit', methods=['GET', 'POST'])
+@login_required
+def item_lists_edit(project_id, list_id):
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        item_list = conn.execute(
+            'SELECT * FROM item_lists WHERE id = ? AND project_id = ?',
+            (list_id, project_id)
+        ).fetchone()
+        if not project or not item_list:
+            abort(404)
+        items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
+        selected_ids = set(
+            row['item_id'] for row in conn.execute(
+                'SELECT item_id FROM item_list_items WHERE item_list_id = ?', (list_id,)
+            ).fetchall()
+        )
+
+        if request.method == 'POST':
+            name = request.form.get('name', '').strip()
+            if not name:
+                flash('List name is required.', 'danger')
+                return render_template('projects/item_list_form.html',
+                                       project=project, item_list=item_list,
+                                       items=items, selected_ids=selected_ids,
+                                       action='Edit')
+            conn.execute(
+                'UPDATE item_lists SET name=?, description=? WHERE id=?',
+                (name,
+                 request.form.get('description', '').strip() or None,
+                 list_id)
+            )
+            new_item_ids = set(int(i) for i in request.form.getlist('item_ids'))
+            # Replace all items: delete then re-insert
+            conn.execute('DELETE FROM item_list_items WHERE item_list_id = ?', (list_id,))
+            for iid in new_item_ids:
+                conn.execute(
+                    'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?,?)',
+                    (list_id, iid)
+                )
+            flash('Item list updated.', 'success')
+            return redirect(url_for('item_lists_detail',
+                                    project_id=project_id, list_id=list_id))
+
+    return render_template('projects/item_list_form.html',
+                           project=project, item_list=item_list,
+                           items=items, selected_ids=selected_ids,
+                           action='Edit')
+
+
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/delete', methods=['POST'])
+@login_required
+def item_lists_delete(project_id, list_id):
+    with get_db() as conn:
+        conn.execute('DELETE FROM item_lists WHERE id = ? AND project_id = ?',
+                     (list_id, project_id))
+    flash('Item list deleted.', 'success')
+    return redirect(url_for('projects_detail', project_id=project_id))
+
+
+# ── Quote Request from Item List ───────────────────────────────────────────────
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/quotes/create',
+           methods=['GET', 'POST'])
+@login_required
+def item_list_quotes_create(project_id, list_id):
+    with get_db() as conn:
+        project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+        item_list = conn.execute(
+            'SELECT * FROM item_lists WHERE id = ? AND project_id = ?',
+            (list_id, project_id)
+        ).fetchone()
+        if not project or not item_list:
+            abort(404)
+
+        all_items = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
+        list_item_ids = set(
+            row['item_id'] for row in conn.execute(
+                'SELECT item_id FROM item_list_items WHERE item_list_id = ?', (list_id,)
+            ).fetchall()
+        )
+        suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
+
+        if request.method == 'POST':
+            title        = request.form.get('title', '').strip()
+            notes        = request.form.get('notes', '').strip()
+            item_ids     = request.form.getlist('item_ids')
+            supplier_ids = request.form.getlist('supplier_ids')
+
+            errors = []
+            if not title:        errors.append('Title is required.')
+            if not item_ids:     errors.append('Select at least one item.')
+            if not supplier_ids: errors.append('Select at least one supplier.')
+            for e in errors:
+                flash(e, 'danger')
+            if errors:
+                return render_template('projects/quote_create.html',
+                                       project=project, item_list=item_list,
+                                       items=all_items, list_item_ids=list_item_ids,
+                                       suppliers=suppliers)
+
+            cur = conn.execute(
+                'INSERT INTO quote_requests (title, notes, item_list_id) VALUES (?,?,?)',
+                (title, notes or None, list_id)
+            )
+            qr_id = cur.lastrowid
+
+            for iid in item_ids:
+                conn.execute(
+                    'INSERT INTO quote_request_items (quote_request_id, item_id) VALUES (?,?)',
+                    (qr_id, int(iid))
+                )
+            for sid in supplier_ids:
+                conn.execute(
+                    'INSERT INTO quote_request_suppliers (quote_request_id, supplier_id) VALUES (?,?)',
+                    (qr_id, int(sid))
+                )
+
+            flash('Quote request created.', 'success')
+            return redirect(url_for('quotes_detail', qr_id=qr_id))
+
+    return render_template('projects/quote_create.html',
+                           project=project, item_list=item_list,
+                           items=all_items, list_item_ids=list_item_ids,
+                           suppliers=suppliers)
+
+
 # ── Suppliers ─────────────────────────────────────────────────────────────────
 @app.route('/suppliers')
 @login_required
@@ -585,11 +913,17 @@ def quotes_list():
             SELECT qr.*,
                    COUNT(DISTINCT qri.item_id)     AS item_count,
                    COUNT(DISTINCT qrs.supplier_id) AS supplier_count,
-                   COUNT(DISTINCT sq.id)           AS received_count
+                   COUNT(DISTINCT sq.id)           AS received_count,
+                   il.name  AS list_name,
+                   p.name   AS project_name,
+                   p.id     AS project_id,
+                   il.id    AS list_id
             FROM   quote_requests qr
             LEFT JOIN quote_request_items     qri ON qri.quote_request_id = qr.id
             LEFT JOIN quote_request_suppliers qrs ON qrs.quote_request_id = qr.id
             LEFT JOIN supplier_quotes         sq  ON sq.quote_request_id  = qr.id
+            LEFT JOIN item_lists              il  ON il.id  = qr.item_list_id
+            LEFT JOIN projects                p   ON p.id   = il.project_id
             GROUP BY qr.id
             ORDER BY qr.created_at DESC
         ''').fetchall()
