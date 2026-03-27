@@ -525,6 +525,62 @@ Supplier-facing description:"""
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/projects/<int:project_id>/lists/<int:list_id>/generate-descriptions', methods=['POST'])
+@login_required
+def item_list_generate_descriptions(project_id, list_id):
+    """Batch-generate supplier descriptions for all items in a list."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY not configured'}), 400
+
+    with get_db() as conn:
+        items = conn.execute('''
+            SELECT i.id, i.description FROM items i
+            JOIN item_list_items ili ON ili.item_id = i.id
+            WHERE ili.item_list_id = ?
+              AND i.description IS NOT NULL AND i.description != ''
+        ''', (list_id,)).fetchall()
+
+    if not items:
+        return jsonify({'generated': 0, 'skipped': 0, 'errors': 0,
+                        'message': 'No items with descriptions found.'})
+
+    try:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=api_key)
+    except Exception as e:
+        return jsonify({'error': f'Failed to initialize API client: {str(e)}'}), 500
+
+    generated, errors = 0, 0
+
+    PROMPT = """Given this internal item description, generate a concise technical specification suitable for sending to a supplier. Focus only on specs, materials, and measurements. Remove any internal notes, budget info, or procurement context. Plain text, max 3 sentences.
+
+Internal Description:
+{desc}
+
+Supplier-facing description:"""
+
+    for item in items:
+        try:
+            msg = client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=300,
+                messages=[{'role': 'user', 'content': PROMPT.format(desc=item['description'])}]
+            )
+            supplier_desc = msg.content[0].text.strip()
+            with get_db() as conn:
+                conn.execute('UPDATE items SET supplier_description = ? WHERE id = ?',
+                             (supplier_desc, item['id']))
+            generated += 1
+        except Exception:
+            errors += 1
+
+    total = len(items)
+    return jsonify({'generated': generated, 'skipped': total - generated - errors,
+                    'errors': errors,
+                    'message': f'Generated supplier descriptions for {generated} of {total} items.'})
+
+
 @app.route('/items/delete/<int:item_id>', methods=['POST'])
 @login_required
 def items_delete(item_id):

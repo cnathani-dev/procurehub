@@ -129,6 +129,9 @@
             <a href="{{ url_for('item_lists_import', project_id=project_id, list_id=item_list.id) }}" class="btn btn-sm btn-outline-secondary">
               <i class="bi bi-upload me-1"></i>Import
             </a>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="genDescBtn" data-bs-toggle="modal" data-bs-target="#genDescModal" title="Auto-generate supplier descriptions">
+              <i class="bi bi-sparkles me-1"></i>AI Descriptions
+            </button>
             <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal">
               <i class="bi bi-plus-lg me-1"></i>Add Item
             </button>
@@ -235,6 +238,31 @@
           </a>
         </div>
         {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generate AI Descriptions Modal -->
+<div class="modal fade" id="genDescModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-sparkles me-2"></i>Generate Descriptions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0 text-muted" style="font-size:.875rem;">
+          This will generate supplier descriptions for all items that have an internal description.
+          Existing supplier descriptions will be overwritten.
+        </p>
+        <div id="genDescResult" class="mt-3" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="genDescConfirm">
+          <i class="bi bi-sparkles me-1"></i>Generate
+        </button>
       </div>
     </div>
   </div>
@@ -369,5 +397,35 @@ if (itemTable) {
     });
   });
 }
+
+// Generate descriptions batch operation
+document.getElementById('genDescConfirm')?.addEventListener('click', function () {
+  const btn = this;
+  const result = document.getElementById('genDescResult');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+  result.style.display = 'none';
+
+  fetch(`/projects/{{ project_id }}/lists/{{ item_list.id }}/generate-descriptions`, {
+    method: 'POST'
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      result.innerHTML = `<div class="alert alert-danger py-2 mb-0" style="font-size:.8rem;">${data.error}</div>`;
+    } else {
+      result.innerHTML = `<div class="alert alert-success py-2 mb-0" style="font-size:.8rem;">${data.message}</div>`;
+    }
+    result.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-sparkles me-1"></i>Generate';
+  })
+  .catch(e => {
+    result.innerHTML = `<div class="alert alert-danger py-2 mb-0" style="font-size:.8rem;">Error: ${e.message}</div>`;
+    result.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-sparkles me-1"></i>Generate';
+  });
+});
 </script>
 {% endblock %}
