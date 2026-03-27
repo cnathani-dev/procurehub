@@ -149,6 +149,7 @@
                 <th class="ps-4" style="width:40%;">Name</th>
                 <th>Qty</th>
                 <th>Unit</th>
+                <th style="width:80px;"><i class="bi bi-file-earmark-text" style="font-size:0.85rem;"></i> Quotes</th>
                 <th class="pe-4 text-end" style="width:50px;"></th>
               </tr>
             </thead>
@@ -158,7 +159,7 @@
                 {% if item.category != ns.current_cat %}
                   {% set ns.current_cat = item.category %}
                   <tr class="category-header-row cat-divider {% if ns.first_cat %}first-cat{% endif %}" data-category="{{ item.category or 'Uncategorized' }}">
-                    <td class="ps-4" colspan="4">{{ item.category or 'Uncategorized' }}</td>
+                    <td class="ps-4" colspan="5">{{ item.category or 'Uncategorized' }}</td>
                   </tr>
                   {% set ns.first_cat = False %}
                 {% endif %}
@@ -168,6 +169,13 @@
                     <input type="number" class="qty-edit" data-item-id="{{ item.id }}" value="{{ item.qty or '' }}" step="0.01" placeholder="—"/>
                   </td>
                   <td class="text-muted" style="font-size:0.9rem;">{{ item.unit or '—' }}</td>
+                  <td class="text-center">
+                    {% if item.quote_request_count > 0 %}
+                    <span class="badge bg-light text-dark" style="font-size:0.75rem;">{{ item.quote_request_count }}</span>
+                    {% else %}
+                    <span class="text-muted" style="font-size:0.85rem;">—</span>
+                    {% endif %}
+                  </td>
                   <td class="pe-4 text-end">
                     <a href="{{ url_for('items_edit', item_id=item.id) }}" class="row-action" title="Edit item">
                       <i class="bi bi-pencil"></i>

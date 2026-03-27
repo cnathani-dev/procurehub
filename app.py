@@ -138,11 +138,13 @@ def init_db():
             );
 
             CREATE TABLE IF NOT EXISTS quote_requests (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                title      TEXT NOT NULL,
-                notes      TEXT,
-                status     TEXT DEFAULT 'open',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_list_id INTEGER NOT NULL,
+                title        TEXT NOT NULL,
+                notes        TEXT,
+                status       TEXT DEFAULT 'open',
+                created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (item_list_id) REFERENCES item_lists(id) ON DELETE CASCADE
             );
 
             CREATE TABLE IF NOT EXISTS quote_request_items (
@@ -729,11 +731,16 @@ def item_lists_detail(project_id, list_id):
         if not project or not item_list:
             abort(404)
         items = conn.execute('''
-            SELECT i.* FROM items i
+            SELECT i.*,
+                   COUNT(DISTINCT qri.quote_request_id) AS quote_request_count
+            FROM items i
             JOIN item_list_items ili ON ili.item_id = i.id
+            LEFT JOIN quote_request_items qri ON qri.item_id = i.id
+            LEFT JOIN quote_requests qr ON qr.id = qri.quote_request_id AND qr.item_list_id = ?
             WHERE ili.item_list_id = ?
+            GROUP BY i.id
             ORDER BY i.category, i.name
-        ''', (list_id,)).fetchall()
+        ''', (list_id, list_id)).fetchall()
         quote_requests = conn.execute('''
             SELECT qr.*,
                    COUNT(DISTINCT qri.item_id)     AS item_count,
@@ -1153,36 +1160,9 @@ def quotes_list():
 @app.route('/quotes/create', methods=['GET', 'POST'])
 @login_required
 def quotes_create():
-    with get_db() as conn:
-        items     = conn.execute('SELECT * FROM items ORDER BY category, name').fetchall()
-        suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
-
-        if request.method == 'POST':
-            title       = request.form.get('title', '').strip()
-            notes       = request.form.get('notes', '').strip()
-            item_ids    = request.form.getlist('item_ids')
-            supplier_ids = request.form.getlist('supplier_ids')
-
-            errors = []
-            if not title:       errors.append('Title is required.')
-            if not item_ids:    errors.append('Select at least one item.')
-            if not supplier_ids: errors.append('Select at least one supplier.')
-            for e in errors:
-                flash(e, 'danger')
-            if errors:
-                return render_template('quotes/create.html', items=items, suppliers=suppliers)
-
-            cur = conn.execute('INSERT INTO quote_requests (title, notes) VALUES (?,?)', (title, notes or None))
-            qr_id = cur.lastrowid
-            for iid in item_ids:
-                conn.execute('INSERT INTO quote_request_items (quote_request_id, item_id) VALUES (?,?)', (qr_id, int(iid)))
-            for sid in supplier_ids:
-                conn.execute('INSERT INTO quote_request_suppliers (quote_request_id, supplier_id) VALUES (?,?)', (qr_id, int(sid)))
-
-            flash('Quote request created.', 'success')
-            return redirect(url_for('quotes_detail', qr_id=qr_id))
-
-    return render_template('quotes/create.html', items=items, suppliers=suppliers)
+    """Quote requests must be created from an item list context. Redirect to quotes list."""
+    flash('Quote requests must be created from an item list. Select a list from Item Lists to create a quote request.', 'info')
+    return redirect(url_for('quotes_list'))
 
 
 @app.route('/quotes/<int:qr_id>')
