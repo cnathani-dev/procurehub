@@ -238,38 +238,6 @@ def init_db():
                 (admin_username, generate_password_hash(admin_password))
             )
 
-        # Create default project "Project One" and "FirstList" itemlist
-        default_project = conn.execute(
-            'SELECT id FROM projects WHERE name = ?', ('Project One',)
-        ).fetchone()
-        if not default_project:
-            conn.execute(
-                'INSERT INTO projects (name, description, status) VALUES (?, ?, ?)',
-                ('Project One', 'Default project for organizing procurement', 'active')
-            )
-            default_project_id = conn.execute(
-                'SELECT id FROM projects WHERE name = ?', ('Project One',)
-            ).fetchone()['id']
-            # Create "FirstList" itemlist for the default project
-            conn.execute(
-                'INSERT INTO item_lists (project_id, name, description) VALUES (?, ?, ?)',
-                (default_project_id, 'FirstList', 'Default list for items')
-            )
-            # Move all items without a project into FirstList
-            first_list_id = conn.execute(
-                'SELECT id FROM item_lists WHERE project_id = ? AND name = ?',
-                (default_project_id, 'FirstList')
-            ).fetchone()['id']
-            items = conn.execute('SELECT id FROM items').fetchall()
-            for item in items:
-                try:
-                    conn.execute(
-                        'INSERT INTO item_list_items (item_list_id, item_id) VALUES (?, ?)',
-                        (first_list_id, item['id'])
-                    )
-                except Exception:
-                    pass  # Item already in a list or duplicate
-
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 def login_required(f):
