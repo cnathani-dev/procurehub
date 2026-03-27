@@ -1076,6 +1076,33 @@ def suppliers_list():
     return render_template('suppliers/index.html', suppliers=suppliers)
 
 
+@app.route('/suppliers/<int:supplier_id>')
+@login_required
+def suppliers_detail(supplier_id):
+    """Show supplier details and all quote requests they're included in."""
+    with get_db() as conn:
+        supplier = conn.execute('SELECT * FROM suppliers WHERE id = ?', (supplier_id,)).fetchone()
+        if not supplier:
+            abort(404)
+        quote_requests = conn.execute('''
+            SELECT qr.*,
+                   il.name  AS list_name,
+                   p.name   AS project_name,
+                   p.id     AS project_id,
+                   il.id    AS list_id,
+                   COUNT(DISTINCT qri.item_id) AS item_count
+            FROM   quote_requests qr
+            JOIN   quote_request_suppliers qrs ON qrs.quote_request_id = qr.id
+            LEFT JOIN quote_request_items  qri ON qri.quote_request_id = qr.id
+            LEFT JOIN item_lists           il  ON il.id = qr.item_list_id
+            LEFT JOIN projects             p   ON p.id  = il.project_id
+            WHERE  qrs.supplier_id = ?
+            GROUP BY qr.id
+            ORDER BY qr.created_at DESC
+        ''', (supplier_id,)).fetchall()
+    return render_template('suppliers/detail.html', supplier=supplier, quote_requests=quote_requests)
+
+
 @app.route('/suppliers/add', methods=['GET', 'POST'])
 @login_required
 def suppliers_add():

@@ -45,6 +45,23 @@
   tr.item-row:hover .row-action {
     opacity: 1;
   }
+
+  /* Popover styling */
+  .popover {
+    max-width: 320px;
+    font-size: 0.82rem;
+  }
+  .popover-body {
+    padding: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.5;
+    color: #555;
+  }
+  .item-name-with-desc {
+    cursor: help;
+    border-bottom: 1px dotted #4f8ef7;
+  }
 </style>
 {% endblock %}
 
@@ -164,7 +181,18 @@
                   {% set ns.first_cat = False %}
                 {% endif %}
                 <tr class="item-row" data-search="{{ item.name|lower }} {{ item.category|lower if item.category }}" data-category="{{ item.category or 'Uncategorized' }}" data-qty="{{ item.qty or 0 }}">
-                  <td class="ps-4"><strong>{{ item.name }}</strong></td>
+                  <td class="ps-4">
+                    {% if item.description %}
+                    <strong class="item-name-with-desc"
+                      data-bs-toggle="popover"
+                      data-bs-trigger="hover focus"
+                      data-bs-placement="right"
+                      data-bs-content="{{ item.description | truncate(500) }}"
+                      title="{{ item.name }}">{{ item.name }}</strong>
+                    {% else %}
+                    <strong>{{ item.name }}</strong>
+                    {% endif %}
+                  </td>
                   <td>
                     <input type="number" class="qty-edit" data-item-id="{{ item.id }}" value="{{ item.qty or '' }}" step="0.01" placeholder="—"/>
                   </td>
@@ -405,6 +433,15 @@ if (itemTable) {
     });
   });
 }
+
+// Initialize Bootstrap popovers for item descriptions
+document.querySelectorAll('[data-bs-toggle="popover"][data-bs-content]').forEach(el => {
+  new bootstrap.Popover(el, {
+    trigger: 'hover focus',
+    placement: 'right',
+    html: false
+  });
+});
 
 // Generate descriptions batch operation
 document.getElementById('genDescConfirm')?.addEventListener('click', function () {

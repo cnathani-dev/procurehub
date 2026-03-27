@@ -181,12 +181,6 @@
        class="nav-link {% if request.endpoint and 'suppliers' in request.endpoint %}active{% endif %}">
       <i class="bi bi-people"></i>Suppliers
     </a>
-
-    <div class="nav-section-label">Procurement</div>
-    <a href="{{ url_for('quotes_list') }}"
-       class="nav-link {% if request.endpoint and 'quotes' in request.endpoint %}active{% endif %}">
-      <i class="bi bi-file-earmark-text"></i>Quote Requests
-    </a>
     <a href="{{ url_for('comparison_global') }}"
        class="nav-link {% if request.endpoint == 'comparison_global' %}active{% endif %}">
       <i class="bi bi-bar-chart-line"></i>Price Comparison

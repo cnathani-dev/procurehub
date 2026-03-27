@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} – ProcureHub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <a href="{{ url_for('suppliers_list') }}" class="text-muted text-decoration-none" style="font-size:.875rem;">
+      <i class="bi bi-arrow-left me-1"></i>Suppliers
+    </a>
+  </div>
+  <div class="d-flex align-items-start justify-content-between">
+    <div>
+      <h1 class="mb-0">{{ supplier.name }}</h1>
+      <div class="d-flex gap-3 mt-2 text-muted" style="font-size:.875rem;">
+        {% if supplier.phone %}
+        <span><i class="bi bi-telephone me-1"></i>{{ supplier.phone }}</span>
+        {% endif %}
+        {% if supplier.address %}
+        <span><i class="bi bi-geo-alt me-1"></i>{{ supplier.address }}</span>
+        {% endif %}
+      </div>
+      {% if supplier.remarks %}
+      <p class="mt-2 mb-0 text-muted" style="font-size:.875rem;">{{ supplier.remarks }}</p>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('suppliers_edit', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-file-earmark-text me-2 text-muted"></i>Quote Requests</span>
+    <span class="badge bg-light text-dark">{{ quote_requests|length }}</span>
+  </div>
+  <div class="card-body p-0">
+    {% if quote_requests %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Title</th>
+            <th>Project</th>
+            <th>List</th>
+            <th>Items</th>
+            <th>Status</th>
+            <th class="pe-4 text-end">Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for qr in quote_requests %}
+          <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('quotes_detail', qr_id=qr.id) }}'">
+            <td class="ps-4"><strong>{{ qr.title }}</strong></td>
+            <td class="text-muted" style="font-size:.85rem;">{{ qr.project_name or '—' }}</td>
+            <td class="text-muted" style="font-size:.85rem;">{{ qr.list_name or '—' }}</td>
+            <td class="text-muted" style="font-size:.85rem;">{{ qr.item_count }}</td>
+            <td>
+              <span class="badge {% if qr.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}" style="font-size:.75rem;">
+                {{ qr.status | capitalize }}
+              </span>
+            </td>
+            <td class="pe-4 text-end text-muted" style="font-size:.85rem;">{{ qr.created_at[:10] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-file-earmark-text mb-2" style="font-size:1.5rem;opacity:0.5;"></i>
+      <p class="mb-0">No quote requests for this supplier yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
