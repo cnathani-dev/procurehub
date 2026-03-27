@@ -1,6 +1,53 @@
 {% extends "base.html" %}
 {% block title %}{{ item_list.name }} – ProcureHub{% endblock %}
 
+{% block head %}
+<style>
+  /* Category group dividers */
+  .cat-divider td {
+    padding: 1.25rem 1.5rem 0.4rem !important;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: #4f8ef7;
+    border-top: 1px solid #e9ecef;
+    background: transparent !important;
+  }
+  .cat-divider.first-cat td { border-top: none; }
+
+  /* Item row hover effect */
+  #itemsTable tbody tr.item-row:hover { background: #f8f9ff; }
+
+  /* Ghost qty input */
+  .qty-edit {
+    width: 64px;
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    color: #333;
+    padding: 2px 4px;
+    border-radius: 4px;
+    outline: none;
+    transition: box-shadow 0.15s, background 0.15s;
+  }
+  .qty-edit:focus {
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(79,142,247,0.3);
+  }
+  .qty-edit::placeholder { color: #ccc; }
+
+  /* Hover-reveal edit button */
+  .row-action {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  tr.item-row:hover .row-action {
+    opacity: 1;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div class="d-flex align-items-center gap-2 mb-2">
@@ -99,35 +146,27 @@
                 <th class="ps-4" style="width:40%;">Name</th>
                 <th>Qty</th>
                 <th>Unit</th>
-                <th>Category</th>
                 <th class="pe-4 text-end" style="width:50px;"></th>
               </tr>
             </thead>
             <tbody>
-              {% set ns = namespace(current_cat=None) %}
+              {% set ns = namespace(current_cat=None, first_cat=True) %}
               {% for item in items %}
                 {% if item.category != ns.current_cat %}
                   {% set ns.current_cat = item.category %}
-                  <tr class="category-header-row" data-category="{{ item.category or 'Uncategorized' }}" style="background:#f9f9f9;font-weight:600;color:#666;font-size:0.85rem;">
-                    <td class="ps-4 py-2" colspan="5">{{ item.category or 'Uncategorized' }}</td>
+                  <tr class="category-header-row cat-divider {% if ns.first_cat %}first-cat{% endif %}" data-category="{{ item.category or 'Uncategorized' }}">
+                    <td class="ps-4" colspan="4">{{ item.category or 'Uncategorized' }}</td>
                   </tr>
+                  {% set ns.first_cat = False %}
                 {% endif %}
                 <tr class="item-row" data-search="{{ item.name|lower }} {{ item.category|lower if item.category }}" data-category="{{ item.category or 'Uncategorized' }}" data-qty="{{ item.qty or 0 }}">
                   <td class="ps-4"><strong>{{ item.name }}</strong></td>
                   <td>
-                    <input type="number" class="qty-input form-control form-control-sm" data-item-id="{{ item.id }}" value="{{ item.qty or '' }}" style="width:70px;" step="0.01" placeholder="—"/>
+                    <input type="number" class="qty-edit" data-item-id="{{ item.id }}" value="{{ item.qty or '' }}" step="0.01" placeholder="—"/>
                   </td>
                   <td class="text-muted" style="font-size:0.9rem;">{{ item.unit or '—' }}</td>
-                  <td>
-                    <select class="category-select form-select form-select-sm" data-item-id="{{ item.id }}" style="max-width: 120px;">
-                      <option value="">—</option>
-                      {% for cat in categories %}
-                      <option value="{{ cat }}" {% if cat == item.category %}selected{% endif %}>{{ cat }}</option>
-                      {% endfor %}
-                    </select>
-                  </td>
                   <td class="pe-4 text-end">
-                    <a href="{{ url_for('items_edit', item_id=item.id) }}" class="btn btn-sm btn-link" title="Edit item">
+                    <a href="{{ url_for('items_edit', item_id=item.id) }}" class="row-action" title="Edit item">
                       <i class="bi bi-pencil"></i>
                     </a>
                   </td>
@@ -311,7 +350,7 @@ if (itemTable) {
   sortSelect.addEventListener('change', updateDisplay);
 
   // Inline qty edit
-  document.querySelectorAll('.qty-input').forEach(input => {
+  document.querySelectorAll('.qty-edit').forEach(input => {
     input.addEventListener('blur', function() {
       const itemId = this.dataset.itemId;
       const qty = this.value.trim();
@@ -325,28 +364,6 @@ if (itemTable) {
       .then(r => r.json())
       .then(data => {
         if (!data.success) alert('Error updating quantity: ' + data.error);
-      })
-      .catch(e => alert('Error: ' + e));
-    });
-  });
-
-  // Inline category edit
-  document.querySelectorAll('.category-select').forEach(select => {
-    select.addEventListener('change', function() {
-      const itemId = this.dataset.itemId;
-      const category = this.value || '';
-
-      fetch(`/items/${itemId}/category`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `category=${encodeURIComponent(category)}`
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.success) {
-          alert('Error updating category: ' + data.error);
-          this.value = '';
-        }
       })
       .catch(e => alert('Error: ' + e));
     });
