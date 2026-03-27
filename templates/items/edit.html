@@ -12,6 +12,7 @@
     <div class="card">
       <div class="card-body p-4">
         <form method="POST">
+          <input type="hidden" name="next" value="{{ next or url_for('item_lists_list') }}"/>
           <div class="mb-3">
             <label class="form-label fw-600" style="font-weight:600;">Name <span class="text-danger">*</span></label>
             <input type="text" name="name" class="form-control" value="{{ item.name }}" required/>
@@ -54,7 +55,7 @@
           </div>
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary px-4">Save Changes</button>
-            <a href="{{ url_for('items_list') }}" class="btn btn-outline-secondary">Cancel</a>
+            <a href="{{ next or url_for('item_lists_list') }}" class="btn btn-outline-secondary">Cancel</a>
           </div>
         </form>
       </div>
